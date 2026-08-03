@@ -35,13 +35,19 @@ func main() {
 	redisClient := redis.NewClient(&redis.Options{Addr: envOr("REDIS_URL", "localhost:6379")})
 	defer redisClient.Close()
 
+	l1, err := cache.NewRistrettoCache()
+	if err != nil {
+		log.Fatalf("ristretto: %v", err)
+	}
+	defer l1.Close()
+
 	// domain services
 	hub := websocket.NewHub()
 	go hub.Run()
 
 	deviceRepo := repository.NewDeviceRepo(pool)
 	positionRepo := repository.NewPositionRepo(pool)
-	cacheImpl := cache.NewCache(redisClient)
+	cacheImpl := cache.NewMultilevelCache(l1, cache.NewCache(redisClient))
 
 	positionService := usecase.NewPositionService(positionRepo, deviceRepo, cacheImpl, hub)
 

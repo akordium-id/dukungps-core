@@ -70,6 +70,102 @@ func TestCacheDeviceOnline(t *testing.T) {
 	assert.True(t, online)
 }
 
+func TestMultilevelCacheSetGetPosition(t *testing.T) {
+	client := newTestRedis(t)
+	defer client.Close()
+
+	l1, err := NewRistrettoCache()
+	require.NoError(t, err)
+	defer l1.Close()
+
+	c := NewMultilevelCache(l1, NewCache(client))
+
+	p := &position.Position{
+		ID:        1,
+		DeviceID:  42,
+		Latitude:  -7.2456,
+		Longitude: 112.7389,
+		Speed:     42.0,
+		Valid:     true,
+		Time:      time.Date(2026, 8, 3, 12, 0, 0, 0, time.UTC),
+		Attributes: map[string]any{
+			"ignition": true,
+			"battery":  12.5,
+		},
+	}
+	require.NoError(t, c.SetPosition(context.Background(), 42, p))
+
+	got, err := c.GetPosition(context.Background(), 42)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, int64(42), got.DeviceID)
+	assert.Equal(t, -7.2456, got.Latitude)
+}
+
+func TestMultilevelCacheL1MissL2Hit(t *testing.T) {
+	client := newTestRedis(t)
+	defer client.Close()
+
+	redisCache := NewCache(client)
+	p := &position.Position{
+		ID:        1,
+		DeviceID:  42,
+		Latitude:  -7.2456,
+		Longitude: 112.7389,
+		Speed:     42.0,
+		Valid:     true,
+		Time:      time.Date(2026, 8, 3, 12, 0, 0, 0, time.UTC),
+	}
+	require.NoError(t, redisCache.SetPosition(context.Background(), 42, p))
+
+	l1, err := NewRistrettoCache()
+	require.NoError(t, err)
+	defer l1.Close()
+
+	c := NewMultilevelCache(l1, redisCache)
+
+	got, err := c.GetPosition(context.Background(), 42)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, int64(42), got.DeviceID)
+	assert.Equal(t, -7.2456, got.Latitude)
+}
+
+func TestMultilevelCachePositionNotFound(t *testing.T) {
+	client := newTestRedis(t)
+	defer client.Close()
+
+	l1, err := NewRistrettoCache()
+	require.NoError(t, err)
+	defer l1.Close()
+
+	c := NewMultilevelCache(l1, NewCache(client))
+
+	_, err = c.GetPosition(context.Background(), 999)
+	assert.Error(t, err)
+}
+
+func TestMultilevelCacheDeviceOnline(t *testing.T) {
+	client := newTestRedis(t)
+	defer client.Close()
+
+	l1, err := NewRistrettoCache()
+	require.NoError(t, err)
+	defer l1.Close()
+
+	c := NewMultilevelCache(l1, NewCache(client))
+
+	online, err := c.IsDeviceOnline(context.Background(), 7)
+	require.NoError(t, err)
+	assert.False(t, online)
+
+	require.NoError(t, c.SetDeviceOnline(context.Background(), 7))
+
+	online, err = c.IsDeviceOnline(context.Background(), 7)
+	require.NoError(t, err)
+	assert.True(t, online)
+}
+
 func newTestRedis(t *testing.T) *redis.Client {
 	t.Helper()
 	s := miniredis.RunT(t)

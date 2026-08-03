@@ -12,7 +12,7 @@
 - Database: PostgreSQL + pgx
 - Cache: Redis (optional, for real-time position cache)
 - Protocol: Netty-inspired TCP server using gorilla/websocket + raw net.Conn
-- Build: Taskfile + justfile
+- Build: Makefile
 - Testing: testify + testcontainers (integration)
 
 ---
@@ -23,7 +23,6 @@
 
 **Files:**
 - Create: `go.mod`
-- Create: `Taskfile.yml`
 - Create: `.gitignore`
 - Create: `Makefile`
 
@@ -74,7 +73,7 @@ dukungps/
 **Step 4: Commit**
 
 ```bash
-git add go.mod go.sum Taskfile.yml .gitignore Makefile
+git add go.mod go.sum .gitignore Makefile
 git commit -m "chore: initialize project structure"
 ```
 

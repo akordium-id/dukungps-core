@@ -36,3 +36,6 @@ go.work.sum
 
 # Build output
 bin/
+
+# Go build artifacts at repo root
+/server

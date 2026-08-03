@@ -1,17 +1,15 @@
 package user
 
 import (
-	"regexp"
+	"net/mail"
 	"strings"
 	"time"
 )
 
-var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
-
 const (
-	RoleAdmin    = "admin"
-	RoleUser     = "user"
-	RoleViewer   = "viewer"
+	RoleAdmin  = "admin"
+	RoleUser   = "user"
+	RoleViewer = "viewer"
 )
 
 type User struct {
@@ -26,6 +24,43 @@ type User struct {
 
 func (u *User) IsValid() bool {
 	return strings.TrimSpace(u.Name) != "" &&
-		emailRegex.MatchString(u.Email) &&
+		IsValidEmail(u.Email) &&
 		len(u.Password) >= 8
+}
+
+func (u *User) NormalizeEmail() {
+	u.Email = NormalizeEmail(u.Email)
+}
+
+func NormalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func IsValidEmail(email string) bool {
+	email = NormalizeEmail(email)
+
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return false
+	}
+	if addr.Address != email {
+		return false
+	}
+
+	local, domain, ok := strings.Cut(addr.Address, "@")
+	if !ok || local == "" || domain == "" {
+		return false
+	}
+
+	labels := strings.Split(domain, ".")
+	if len(labels) < 2 {
+		return false
+	}
+	for _, label := range labels {
+		if label == "" || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return false
+		}
+	}
+
+	return true
 }

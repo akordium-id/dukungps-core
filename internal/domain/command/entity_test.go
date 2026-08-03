@@ -43,3 +43,9 @@ func TestCommandTypeConstants(t *testing.T) {
 	assert.Equal(t, "rebootDevice", TypeRebootDevice)
 	assert.Equal(t, "custom", TypeCustom)
 }
+
+func TestCommandStatusConstants(t *testing.T) {
+	assert.Equal(t, "pending", StatusPending)
+	assert.Equal(t, "sent", StatusSent)
+	assert.Equal(t, "failed", StatusFailed)
+}

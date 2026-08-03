@@ -19,6 +19,8 @@ var (
 type DeviceRepository interface {
 	Create(ctx context.Context, d *device.Device) error
 	FindByUniqueID(ctx context.Context, uniqueID string) (*device.Device, error)
+	FindByID(ctx context.Context, id int64) (*device.Device, error)
+	FindAll(ctx context.Context) ([]*device.Device, error)
 	Update(ctx context.Context, d *device.Device) error
 }
 
@@ -60,6 +62,45 @@ func (r *PostgresDeviceRepo) FindByUniqueID(ctx context.Context, uniqueID string
 		return nil, err
 	}
 	return d, nil
+}
+
+func (r *PostgresDeviceRepo) FindByID(ctx context.Context, id int64) (*device.Device, error) {
+	d := &device.Device{}
+	err := r.pool.QueryRow(ctx,
+		`SELECT id, unique_id, name, model, protocol, status, created_at, updated_at
+		 FROM devices WHERE id = $1`,
+		id,
+	).Scan(&d.ID, &d.UniqueID, &d.Name, &d.Model, &d.Protocol, &d.Status, &d.CreatedAt, &d.UpdatedAt)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrDeviceNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func (r *PostgresDeviceRepo) FindAll(ctx context.Context) ([]*device.Device, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, unique_id, name, model, protocol, status, created_at, updated_at
+		 FROM devices ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	devices := make([]*device.Device, 0)
+	for rows.Next() {
+		d := &device.Device{}
+		if err := rows.Scan(
+			&d.ID, &d.UniqueID, &d.Name, &d.Model, &d.Protocol, &d.Status, &d.CreatedAt, &d.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		devices = append(devices, d)
+	}
+	return devices, rows.Err()
 }
 
 func (r *PostgresDeviceRepo) Update(ctx context.Context, d *device.Device) error {

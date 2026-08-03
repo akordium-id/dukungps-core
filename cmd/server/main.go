@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"os"
 	"strconv"
@@ -11,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/akordium-id/dukungps/internal/api/handler"
-	"github.com/akordium-id/dukungps/internal/domain/device"
 	"github.com/akordium-id/dukungps/internal/infrastructure/cache"
 	"github.com/akordium-id/dukungps/internal/infrastructure/database"
 	"github.com/akordium-id/dukungps/internal/infrastructure/websocket"
@@ -54,10 +52,8 @@ func main() {
 	registry.Register(&huabao.Protocol{})
 
 	tcpServer := protocol.NewServer(registry)
-	handlerAdapter := &positionHandlerAdapter{
-		svc:        positionService,
-		deviceRepo: deviceRepo,
-	}
+	autoRegister := envBool("AUTO_REGISTER_DEVICES")
+	handlerAdapter := usecase.NewDevicePositionHandler(positionService, deviceRepo, autoRegister)
 	for _, name := range registry.Names() {
 		tcpServer.SetHandler(name, handlerAdapter)
 	}
@@ -91,6 +87,15 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
+func envBool(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
 func portOr(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
@@ -98,39 +103,4 @@ func portOr(key string, fallback int) int {
 		}
 	}
 	return fallback
-}
-
-type positionHandlerAdapter struct {
-	svc        *usecase.PositionService
-	deviceRepo repository.DeviceRepository
-}
-
-func (a *positionHandlerAdapter) HandlePositions(deviceID string, res *protocol.DecodeResult) {
-	deviceID = strings.TrimSpace(deviceID)
-	for _, p := range res.Positions {
-		if deviceID != "" {
-			dev, err := a.deviceRepo.FindByUniqueID(context.Background(), deviceID)
-			if err != nil {
-				// auto-register device on first contact
-				newDev := &device.Device{
-					UniqueID: deviceID,
-					Name:     deviceID,
-					Status:   device.StatusOnline,
-				}
-				if err := a.deviceRepo.Create(context.Background(), newDev); err != nil && !errors.Is(err, repository.ErrDeviceExists) {
-					log.Printf("register device %s: %v", deviceID, err)
-					continue
-				}
-				dev, err = a.deviceRepo.FindByUniqueID(context.Background(), deviceID)
-				if err != nil {
-					log.Printf("resolve device %s: %v", deviceID, err)
-					continue
-				}
-			}
-			p.DeviceID = dev.ID
-		}
-		if err := a.svc.ProcessPosition(context.Background(), p); err != nil {
-			log.Printf("process position: %v", err)
-		}
-	}
 }

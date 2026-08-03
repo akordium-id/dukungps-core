@@ -66,7 +66,8 @@ altitude i16, course u16, satellites, speed, lalu IO parameter groups).
 2. Frame login/identifikasi → `DecodeResult.DeviceID` berisi IMEI.
 3. Server menyimpan IMEI untuk koneksi tersebut (session per-connection).
 4. Frame data → decoder menghasilkan positions, server mengirim `Response` (ack).
-5. `PositionHandler` resolve IMEI → device ID (auto-register jika belum ada),
+5. `PositionHandler` resolve IMEI → device ID. Jika device belum terdaftar,
+   posisi di-drop kecuali `AUTO_REGISTER_DEVICES=true` (auto-register aktif),
    lalu `PositionService.ProcessPosition`:
    a. validasi fix
    b. persist ke PostgreSQL

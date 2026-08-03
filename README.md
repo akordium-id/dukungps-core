@@ -77,6 +77,7 @@ Wajib set `DATABASE_URL` dan `POSTGRES_PASSWORD` via environment.
 | `TELTONIKA_PORT` | `5027` | Teltonika TCP port |
 | `GT06_PORT` | `5023` | GT06 TCP port |
 | `HUABAO_PORT` | `5020` | Huabao TCP port |
+| `AUTO_REGISTER_DEVICES` | `false` | Auto-register device baru saat pertama kirim data (default off — device harus didaftarkan via API dulu) |
 
 ## Dokumentasi
 

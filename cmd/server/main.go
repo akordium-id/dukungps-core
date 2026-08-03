@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/akordium-id/dukungps/internal/api/handler"
+	"github.com/akordium-id/dukungps/internal/domain/device"
 	"github.com/akordium-id/dukungps/internal/infrastructure/cache"
 	"github.com/akordium-id/dukungps/internal/infrastructure/database"
 	"github.com/akordium-id/dukungps/internal/infrastructure/websocket"
@@ -59,6 +62,11 @@ func main() {
 		tcpServer.SetHandler(name, handlerAdapter)
 	}
 
+	// protocol ports (overridable via env), default mengikuti Traccar
+	tcpServer.RegisterPort("teltonika", portOr("TELTONIKA_PORT", teltonika.DefaultPort))
+	tcpServer.RegisterPort("gt06", portOr("GT06_PORT", gt06.DefaultPort))
+	tcpServer.RegisterPort("huabao", portOr("HUABAO_PORT", huabao.DefaultPort))
+
 	if err := tcpServer.Start(); err != nil {
 		log.Fatalf("protocol server: %v", err)
 	}
@@ -83,6 +91,15 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
+func portOr(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return fallback
+}
+
 type positionHandlerAdapter struct {
 	svc        *usecase.PositionService
 	deviceRepo repository.DeviceRepository
@@ -94,8 +111,21 @@ func (a *positionHandlerAdapter) HandlePositions(deviceID string, res *protocol.
 		if deviceID != "" {
 			dev, err := a.deviceRepo.FindByUniqueID(context.Background(), deviceID)
 			if err != nil {
-				log.Printf("resolve device %s: %v", deviceID, err)
-				continue
+				// auto-register device on first contact
+				newDev := &device.Device{
+					UniqueID: deviceID,
+					Name:     deviceID,
+					Status:   device.StatusOnline,
+				}
+				if err := a.deviceRepo.Create(context.Background(), newDev); err != nil && !errors.Is(err, repository.ErrDeviceExists) {
+					log.Printf("register device %s: %v", deviceID, err)
+					continue
+				}
+				dev, err = a.deviceRepo.FindByUniqueID(context.Background(), deviceID)
+				if err != nil {
+					log.Printf("resolve device %s: %v", deviceID, err)
+					continue
+				}
 			}
 			p.DeviceID = dev.ID
 		}

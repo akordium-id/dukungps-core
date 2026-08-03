@@ -1,0 +1,11 @@
+.git
+.worktrees
+bin
+*.md
+docs
+tests
+internal/**/*_test.go
+docker-compose*.yml
+Makefile
+Taskfile.yml
+.gitignore

@@ -2,6 +2,8 @@ package huabao
 
 import "github.com/akordium-id/dukungps/internal/protocol"
 
+const DefaultPort = 5020
+
 type Protocol struct{}
 
 func (p *Protocol) Name() string          { return protocol.Huabao }

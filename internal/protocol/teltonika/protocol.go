@@ -2,6 +2,8 @@ package teltonika
 
 import "github.com/akordium-id/dukungps/internal/protocol"
 
+const DefaultPort = 5027
+
 type Protocol struct{}
 
 func (p *Protocol) Name() string          { return protocol.Teltonika }

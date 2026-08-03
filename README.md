@@ -38,6 +38,14 @@ make run        # go run ./cmd/server
 make test       # go test ./...
 ```
 
+Frontend (Next.js):
+
+```bash
+cd dukungps-web
+npm install
+npm run dev    # http://localhost:3000
+```
+
 Butuh PostgreSQL + Redis lokal:
 
 ```bash
@@ -56,6 +64,7 @@ Service:
 - GT06: `:5023` (override `GT06_PORT`)
 - Teltonika: `:5027` (override `TELTONIKA_PORT`)
 - Huabao: `:5020` (override `HUABAO_PORT`)
+- Web Dashboard: `:3000` (override `WEB_PORT`)
 
 Migration schema otomatis dijalankan oleh `entrypoint.sh` saat pertama start.
 
@@ -77,7 +86,8 @@ Wajib set `DATABASE_URL` dan `POSTGRES_PASSWORD` via environment.
 | `TELTONIKA_PORT` | `5027` | Teltonika TCP port |
 | `GT06_PORT` | `5023` | GT06 TCP port |
 | `HUABAO_PORT` | `5020` | Huabao TCP port |
-| `AUTO_REGISTER_DEVICES` | `false` | Auto-register device baru saat pertama kirim data (default off — device harus didaftarkan via API dulu) |
+| `AUTO_REGISTER_DEVICES` | `false` | Auto-register device baru saat pertama kirim data |
+| `WEB_PORT` | `3000` | Web dashboard port |
 
 ## Dokumentasi
 

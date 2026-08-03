@@ -60,6 +60,22 @@ func (s *Server) Start() error {
 	return nil
 }
 
+// Addr returns the actual bound address for a protocol listener (useful when
+// the port is 0, i.e. OS-assigned).
+func (s *Server) Addr(name string) net.Addr {
+	if ln, ok := s.listeners[name]; ok {
+		return ln.Addr()
+	}
+	return nil
+}
+
+// Stop closes all listeners.
+func (s *Server) Stop() {
+	for _, ln := range s.listeners {
+		_ = ln.Close()
+	}
+}
+
 func addrFor(port int) string {
 	return ":" + itoa(port)
 }

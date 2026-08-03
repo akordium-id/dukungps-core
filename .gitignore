@@ -33,3 +33,6 @@ go.work.sum
 
 # Git worktrees
 .worktrees/
+
+# Build output
+bin/

@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/akordium-id/dukungps/internal/domain/command"
 	"github.com/akordium-id/dukungps/internal/domain/position"
@@ -14,6 +13,12 @@ const (
 	Huabao    = "huabao"
 )
 
+type DecodeResult struct {
+	DeviceID  string
+	Positions []*position.Position
+	Response  []byte
+}
+
 type Protocol interface {
 	Name() string
 	Decoder() Decoder
@@ -21,7 +26,7 @@ type Protocol interface {
 }
 
 type Decoder interface {
-	Decode(data []byte, conn net.Conn, remoteAddr net.Addr) ([]*position.Position, error)
+	Decode(data []byte) (*DecodeResult, error)
 }
 
 type Encoder interface {

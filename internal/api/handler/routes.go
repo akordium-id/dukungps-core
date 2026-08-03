@@ -4,18 +4,18 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/akordium-id/dukungps/internal/infrastructure/websocket"
-	"github.com/akordium-id/dukungps/internal/repository"
+	"github.com/akordium-id/dukungps/internal/usecase"
 )
 
 type Services struct {
-	DeviceRepo   repository.DeviceRepository
-	PositionRepo repository.PositionRepository
-	Hub          *websocket.Hub
+	DeviceUseCase   usecase.DeviceUseCase
+	PositionUseCase usecase.PositionUseCase
+	Hub             *websocket.Hub
 }
 
 func SetupRoutes(app *fiber.App, services *Services) {
-	deviceHandler := NewDeviceHandler(services.DeviceRepo)
-	positionHandler := NewPositionHandler(services.PositionRepo, services.Hub)
+	deviceHandler := NewDeviceHandler(services.DeviceUseCase)
+	positionHandler := NewPositionHandler(services.PositionUseCase, services.Hub)
 	wsHandler := NewWebSocketHandler(services.Hub)
 
 	api := app.Group("/api/v1")

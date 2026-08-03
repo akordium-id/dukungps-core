@@ -9,6 +9,11 @@ import (
 	"github.com/akordium-id/dukungps/internal/repository"
 )
 
+type PositionUseCase interface {
+	ProcessPosition(ctx context.Context, p *position.Position) error
+	GetPositionsByDevice(ctx context.Context, deviceID int64, limit int) ([]position.Position, error)
+}
+
 type PositionService struct {
 	positionRepo repository.PositionRepository
 	deviceRepo   repository.DeviceRepository
@@ -50,3 +55,9 @@ func (s *PositionService) ProcessPosition(ctx context.Context, p *position.Posit
 
 	return nil
 }
+
+func (s *PositionService) GetPositionsByDevice(ctx context.Context, deviceID int64, limit int) ([]position.Position, error) {
+	return s.positionRepo.FindByDeviceID(ctx, deviceID, limit)
+}
+
+var _ PositionUseCase = (*PositionService)(nil)

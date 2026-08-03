@@ -49,6 +49,7 @@ func main() {
 	positionRepo := repository.NewPositionRepo(pool)
 	cacheImpl := cache.NewMultilevelCache(l1, cache.NewCache(redisClient))
 
+	deviceService := usecase.NewDeviceService(deviceRepo)
 	positionService := usecase.NewPositionService(positionRepo, deviceRepo, cacheImpl, hub)
 
 	// protocol registry + TCP server
@@ -76,9 +77,9 @@ func main() {
 	// HTTP API
 	app := fiber.New()
 	handler.SetupRoutes(app, &handler.Services{
-		DeviceRepo:   deviceRepo,
-		PositionRepo: positionRepo,
-		Hub:          hub,
+		DeviceUseCase:   deviceService,
+		PositionUseCase: positionService,
+		Hub:             hub,
 	})
 
 	if err := app.Listen(envOr("HTTP_ADDR", ":8080")); err != nil {

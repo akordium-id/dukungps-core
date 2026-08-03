@@ -1,25 +1,26 @@
 package handler
 
 import (
-	"context"
+	"errors"
 	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/akordium-id/dukungps/internal/domain/device"
 	"github.com/akordium-id/dukungps/internal/repository"
+	"github.com/akordium-id/dukungps/internal/usecase"
 )
 
 type DeviceHandler struct {
-	deviceRepo repository.DeviceRepository
+	deviceUC usecase.DeviceUseCase
 }
 
-func NewDeviceHandler(deviceRepo repository.DeviceRepository) *DeviceHandler {
-	return &DeviceHandler{deviceRepo: deviceRepo}
+func NewDeviceHandler(deviceUC usecase.DeviceUseCase) *DeviceHandler {
+	return &DeviceHandler{deviceUC: deviceUC}
 }
 
 func (h *DeviceHandler) List(c fiber.Ctx) error {
-	devices, err := h.deviceRepo.FindAll(c.Context())
+	devices, err := h.deviceUC.ListDevices(c.Context())
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -32,9 +33,12 @@ func (h *DeviceHandler) Get(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid device id"})
 	}
 
-	d, err := h.deviceRepo.FindByID(c.Context(), id)
+	d, err := h.deviceUC.GetDevice(c.Context(), id)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "device not found"})
+		if errors.Is(err, repository.ErrDeviceNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "device not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(d)
 }
@@ -45,17 +49,14 @@ func (h *DeviceHandler) Create(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid body"})
 	}
 
-	if !d.IsValid() {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "unique_id and protocol are required"})
-	}
-
-	if err := h.deviceRepo.Create(c.Context(), &d); err != nil {
-		if err == repository.ErrDeviceExists {
+	if err := h.deviceUC.CreateDevice(c.Context(), &d); err != nil {
+		if errors.Is(err, usecase.ErrDeviceValidation) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "unique_id and protocol are required"})
+		}
+		if errors.Is(err, repository.ErrDeviceExists) {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "device already exists"})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusCreated).JSON(d)
 }
-
-var _ = context.Background

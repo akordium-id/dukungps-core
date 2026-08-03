@@ -6,16 +6,16 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/akordium-id/dukungps/internal/infrastructure/websocket"
-	"github.com/akordium-id/dukungps/internal/repository"
+	"github.com/akordium-id/dukungps/internal/usecase"
 )
 
 type PositionHandler struct {
-	positionRepo repository.PositionRepository
-	hub          *websocket.Hub
+	positionUC usecase.PositionUseCase
+	hub        *websocket.Hub
 }
 
-func NewPositionHandler(positionRepo repository.PositionRepository, hub *websocket.Hub) *PositionHandler {
-	return &PositionHandler{positionRepo: positionRepo, hub: hub}
+func NewPositionHandler(positionUC usecase.PositionUseCase, hub *websocket.Hub) *PositionHandler {
+	return &PositionHandler{positionUC: positionUC, hub: hub}
 }
 
 func (h *PositionHandler) ListByDevice(c fiber.Ctx) error {
@@ -31,7 +31,7 @@ func (h *PositionHandler) ListByDevice(c fiber.Ctx) error {
 		}
 	}
 
-	positions, err := h.positionRepo.FindByDeviceID(c.Context(), deviceID, limit)
+	positions, err := h.positionUC.GetPositionsByDevice(c.Context(), deviceID, limit)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

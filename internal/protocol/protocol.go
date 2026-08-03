@@ -29,6 +29,13 @@ type Decoder interface {
 	Decode(data []byte) (*DecodeResult, error)
 }
 
+// FrameDecoder is implemented by protocols whose decoders can report the
+// byte length of a complete frame given a (possibly partial) byte buffer.
+// It lets the TCP server accumulate and split a fragmented stream.
+type FrameDecoder interface {
+	FrameLen(data []byte) (int, error)
+}
+
 type Encoder interface {
 	Encode(cmd command.Command) ([]byte, error)
 }

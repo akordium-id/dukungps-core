@@ -44,7 +44,6 @@ func (d *Decoder) Decode(data []byte) (*protocol.DecodeResult, error) {
 	if len(data) < 4 || data[0] != 0x7E {
 		return nil, errNoFrame
 	}
-
 	// find closing 0x7E, unescape 0x7D 0x01 -> 0x7D, 0x7D 0x02 -> 0x7E
 	frame, err := unescapeFrame(data)
 	if err != nil {
@@ -107,6 +106,24 @@ func indexBytes(frame []byte, msgType uint16, indexSize, bodyOffset int) []byte 
 		return frame[bodyOffset-1 : bodyOffset]
 	}
 	return frame[bodyOffset-2 : bodyOffset]
+}
+
+// FrameLen reports the length of a complete Huabao frame by scanning for the
+// closing 0x7E, skipping 0x7D-escaped bytes (0x7D 0x01 -> 0x7D, 0x7D 0x02 -> 0x7E).
+func (d *Decoder) FrameLen(data []byte) (int, error) {
+	if len(data) == 0 || data[0] != 0x7E {
+		return 0, errNoFrame
+	}
+	for i := 1; i < len(data); i++ {
+		if data[i] == 0x7D && i+1 < len(data) {
+			i++
+			continue
+		}
+		if data[i] == 0x7E {
+			return i + 1, nil
+		}
+	}
+	return 0, errNoFrame
 }
 
 func unescapeFrame(data []byte) ([]byte, error) {

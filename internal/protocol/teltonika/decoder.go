@@ -37,6 +37,30 @@ func (d *Decoder) Decode(data []byte) (*protocol.DecodeResult, error) {
 	return d.decodeData(data)
 }
 
+// FrameLen reports the length of a complete Teltonika frame.
+// Identification: u16 imei length + imei. Data: u32 zero prefix + u32 length + payload.
+func (d *Decoder) FrameLen(data []byte) (int, error) {
+	if len(data) < 2 {
+		return 0, errShortFrame
+	}
+	if binary.BigEndian.Uint16(data[:2]) > 0 {
+		length := int(binary.BigEndian.Uint16(data[:2]))
+		if len(data) < 2+length {
+			return 0, errShortFrame
+		}
+		return 2 + length, nil
+	}
+	if len(data) < 8 {
+		return 0, errShortFrame
+	}
+	dataLen := int(binary.BigEndian.Uint32(data[4:8]))
+	total := 8 + dataLen
+	if len(data) < total {
+		return 0, errShortFrame
+	}
+	return total, nil
+}
+
 func (d *Decoder) decodeIdentification(data []byte) (*protocol.DecodeResult, error) {
 	length := int(binary.BigEndian.Uint16(data[:2]))
 	if len(data) < 2+length {

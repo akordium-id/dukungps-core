@@ -39,7 +39,6 @@ func (d *Decoder) Decode(data []byte) (*protocol.DecodeResult, error) {
 	if len(data) < 10 {
 		return nil, errShortFrame
 	}
-
 	extended := false
 	var lenField int
 	switch {
@@ -92,6 +91,33 @@ func (d *Decoder) Decode(data []byte) (*protocol.DecodeResult, error) {
 
 func verifyCRC(frame []byte) bool {
 	return binary.BigEndian.Uint16(frame[len(frame)-4:len(frame)-2]) == crcX25(frame[2:len(frame)-4])
+}
+
+// FrameLen reports the length of a complete GT06 frame.
+// Short (0x7878): LEN byte + 5. Extended (0x7979): LEN u16 + 6.
+func (d *Decoder) FrameLen(data []byte) (int, error) {
+	if len(data) < 3 {
+		return 0, errShortFrame
+	}
+	switch {
+	case data[0] == 0x78 && data[1] == 0x78:
+		total := int(data[2]) + 5
+		if len(data) < total {
+			return 0, errShortFrame
+		}
+		return total, nil
+	case data[0] == 0x79 && data[1] == 0x79:
+		if len(data) < 4 {
+			return 0, errShortFrame
+		}
+		total := int(binary.BigEndian.Uint16(data[2:4])) + 6
+		if len(data) < total {
+			return 0, errShortFrame
+		}
+		return total, nil
+	default:
+		return 0, errors.New("gt06: invalid start marker")
+	}
 }
 
 func crcX25(data []byte) uint16 {

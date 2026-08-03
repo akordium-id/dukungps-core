@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 
 	"github.com/akordium-id/dukungps/internal/domain/position"
 	"github.com/akordium-id/dukungps/internal/infrastructure/cache"
@@ -9,9 +10,19 @@ import (
 	"github.com/akordium-id/dukungps/internal/repository"
 )
 
+type PositionSearchParams struct {
+	DeviceID int64
+	Limit    int
+	From     *time.Time
+	To       *time.Time
+	MinSpeed float64
+	MaxSpeed float64
+}
+
 type PositionUseCase interface {
 	ProcessPosition(ctx context.Context, p *position.Position) error
 	GetPositionsByDevice(ctx context.Context, deviceID int64, limit int) ([]position.Position, error)
+	SearchPositions(ctx context.Context, params PositionSearchParams) ([]position.Position, error)
 }
 
 type PositionService struct {
@@ -58,6 +69,10 @@ func (s *PositionService) ProcessPosition(ctx context.Context, p *position.Posit
 
 func (s *PositionService) GetPositionsByDevice(ctx context.Context, deviceID int64, limit int) ([]position.Position, error) {
 	return s.positionRepo.FindByDeviceID(ctx, deviceID, limit)
+}
+
+func (s *PositionService) SearchPositions(ctx context.Context, params PositionSearchParams) ([]position.Position, error) {
+	return s.positionRepo.FindByDeviceID(ctx, params.DeviceID, params.Limit)
 }
 
 var _ PositionUseCase = (*PositionService)(nil)

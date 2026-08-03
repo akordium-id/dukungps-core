@@ -47,10 +47,20 @@ func main() {
 
 	deviceRepo := repository.NewDeviceRepo(pool)
 	positionRepo := repository.NewPositionRepo(pool)
+	geofenceRepo := repository.NewGeofenceRepo(pool)
+	userRepo := repository.NewUserRepo(pool)
+	commandRepo := repository.NewCommandRepo(pool)
+	deviceGroupRepo := repository.NewDeviceGroupRepo(pool)
+	alertRepo := repository.NewAlertRepo(pool)
 	cacheImpl := cache.NewMultilevelCache(l1, cache.NewCache(redisClient))
 
 	deviceService := usecase.NewDeviceService(deviceRepo)
 	positionService := usecase.NewPositionService(positionRepo, deviceRepo, cacheImpl, hub)
+	geofenceService := usecase.NewGeofenceService(geofenceRepo)
+	userService := usecase.NewUserService(userRepo)
+	commandService := usecase.NewCommandService(commandRepo)
+	deviceGroupService := usecase.NewDeviceGroupService(deviceGroupRepo)
+	alertService := usecase.NewAlertService(alertRepo)
 
 	// protocol registry + TCP server
 	registry := protocol.NewRegistry()
@@ -77,9 +87,14 @@ func main() {
 	// HTTP API
 	app := fiber.New()
 	handler.SetupRoutes(app, &handler.Services{
-		DeviceUseCase:   deviceService,
-		PositionUseCase: positionService,
-		Hub:             hub,
+		DeviceUseCase:     deviceService,
+		PositionUseCase:   positionService,
+		GeofenceUseCase:   geofenceService,
+		UserUseCase:       userService,
+		CommandUseCase:    commandService,
+		DeviceGroupUseCase: deviceGroupService,
+		AlertUseCase:      alertService,
+		Hub:                hub,
 	})
 
 	if err := app.Listen(envOr("HTTP_ADDR", ":8080")); err != nil {

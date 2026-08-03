@@ -25,3 +25,15 @@ type Device struct {
 func (d *Device) IsValid() bool {
 	return strings.TrimSpace(d.UniqueID) != "" && d.Protocol != ""
 }
+
+type DeviceGroup struct {
+	ID          int64
+	Name        string
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+func (g *DeviceGroup) IsValid() bool {
+	return strings.TrimSpace(g.Name) != ""
+}

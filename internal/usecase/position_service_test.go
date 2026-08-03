@@ -49,6 +49,19 @@ func (m *mockDeviceRepo) FindByUniqueID(ctx context.Context, uniqueID string) (*
 	return args.Get(0).(*device.Device), args.Error(1)
 }
 
+func (m *mockDeviceRepo) FindByID(ctx context.Context, id int64) (*device.Device, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*device.Device), args.Error(1)
+}
+
+func (m *mockDeviceRepo) FindAll(ctx context.Context) ([]*device.Device, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*device.Device), args.Error(1)
+}
+
 func (m *mockDeviceRepo) Update(ctx context.Context, d *device.Device) error {
 	args := m.Called(ctx, d)
 	return args.Error(0)

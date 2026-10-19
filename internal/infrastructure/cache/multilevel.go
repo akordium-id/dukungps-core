@@ -11,11 +11,11 @@ import (
 )
 
 type MultilevelCache struct {
-	l1 *ristretto.Cache
+	l1 *ristretto.Cache[string, any]
 	l2 Cache
 }
 
-func NewMultilevelCache(l1 *ristretto.Cache, l2 Cache) *MultilevelCache {
+func NewMultilevelCache(l1 *ristretto.Cache[string, any], l2 Cache) *MultilevelCache {
 	return &MultilevelCache{l1: l1, l2: l2}
 }
 

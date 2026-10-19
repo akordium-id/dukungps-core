@@ -74,6 +74,10 @@ func (m *mockPositionUseCase) RegisterPositionHook(hook usecase.PositionHook) {
 	m.Called(hook)
 }
 
+func (m *mockPositionUseCase) RegisterPreFilter(filter usecase.PrePositionFilter) {
+	m.Called(filter)
+}
+
 var _ usecase.PositionUseCase = (*mockPositionUseCase)(nil)
 
 func TestDeviceHandlerList(t *testing.T) {

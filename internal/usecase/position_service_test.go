@@ -156,6 +156,42 @@ func TestPositionService_ProcessPositionBroadcast(t *testing.T) {
 	}
 }
 
+func TestPositionService_PreFilter(t *testing.T) {
+	posRepo := &mockPositionRepo{}
+	hub := websocket.NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	cacheImpl := cache.NewCache(newMiniredis(t))
+	svc := NewPositionService(posRepo, nil, cacheImpl, hub)
+
+	// Filter that drops any position with speed > 100
+	svc.RegisterPreFilter(func(ctx context.Context, p *position.Position, last *position.Position) (bool, error) {
+		if p.Speed > 100 {
+			return false, nil // drop
+		}
+		if p.Attributes == nil {
+			p.Attributes = make(map[string]any)
+		}
+		p.Attributes["enriched"] = true
+		return true, nil
+	})
+
+	// Case 1: Drop position
+	dropPos := &position.Position{DeviceID: 99, Valid: true, Speed: 150}
+	err := svc.ProcessPosition(context.Background(), dropPos)
+	require.NoError(t, err)
+	posRepo.AssertNotCalled(t, "Create", mock.Anything, dropPos)
+
+	// Case 2: Keep & Enrich position
+	posRepo.On("Create", mock.Anything, mock.AnythingOfType("*position.Position")).Return(nil)
+	keepPos := &position.Position{DeviceID: 99, Valid: true, Speed: 60}
+	err = svc.ProcessPosition(context.Background(), keepPos)
+	require.NoError(t, err)
+	posRepo.AssertCalled(t, "Create", mock.Anything, keepPos)
+	assert.Equal(t, true, keepPos.Attributes["enriched"])
+}
+
 func newMiniredis(t *testing.T) *redis.Client {
 	t.Helper()
 	s := miniredis.RunT(t)

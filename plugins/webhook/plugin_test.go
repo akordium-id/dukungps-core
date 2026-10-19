@@ -18,35 +18,24 @@ import (
 	"github.com/akordium-id/dukungps/plugins/webhook"
 )
 
-type testCore struct {
+type mockCoreWrapper struct {
+	plugin.Core
 	hook       plugin.PositionHook
-	router     fiber.Router
+	subRouter  fiber.Router
 	webhookURL string
 }
 
-func (c *testCore) OnPosition(hook plugin.PositionHook) {
-	c.hook = hook
+func (m *mockCoreWrapper) OnPosition(hook plugin.PositionHook) {
+	m.hook = hook
 }
 
-func (c *testCore) Router(pluginName string) fiber.Router {
-	return c.router
+func (m *mockCoreWrapper) Router(name string) fiber.Router {
+	return m.subRouter
 }
 
-func (c *testCore) Devices() plugin.DeviceReader {
-	return nil
-}
-
-func (c *testCore) Positions() plugin.PositionReader {
-	return nil
-}
-
-func (c *testCore) DB() any {
-	return nil
-}
-
-func (c *testCore) Config(key string, fallback string) string {
+func (m *mockCoreWrapper) Config(key string, fallback string) string {
 	if key == "PLUGIN_WEBHOOK_URL" {
-		return c.webhookURL
+		return m.webhookURL
 	}
 	return fallback
 }
@@ -93,26 +82,4 @@ func TestWebhookPluginLifecycleAndHook(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 
 	require.NoError(t, p.Close())
-}
-
-type mockCoreWrapper struct {
-	plugin.Core
-	hook       plugin.PositionHook
-	subRouter  fiber.Router
-	webhookURL string
-}
-
-func (m *mockCoreWrapper) OnPosition(hook plugin.PositionHook) {
-	m.hook = hook
-}
-
-func (m *mockCoreWrapper) Router(name string) fiber.Router {
-	return m.subRouter
-}
-
-func (m *mockCoreWrapper) Config(key string, fallback string) string {
-	if key == "PLUGIN_WEBHOOK_URL" {
-		return m.webhookURL
-	}
-	return fallback
 }

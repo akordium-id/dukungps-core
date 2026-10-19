@@ -11,6 +11,9 @@ import (
 	"github.com/akordium-id/dukungps/internal/domain/position"
 )
 
+// PrePositionFilter allows plugins to inspect, enrich, or drop a position before DB commit.
+type PrePositionFilter func(ctx context.Context, p *position.Position, last *position.Position) (keep bool, err error)
+
 // PositionHook is a callback invoked after a position is validated, stored, and cached.
 type PositionHook func(ctx context.Context, p *position.Position) error
 
@@ -36,6 +39,7 @@ type GeofenceReader interface {
 type Core interface {
 	// Hooks
 	OnPosition(hook PositionHook)
+	OnPreFilter(filter PrePositionFilter)
 
 	// Routing (sub-router scoped under /api/v1/plugins/<plugin-name>)
 	Router(pluginName string) fiber.Router

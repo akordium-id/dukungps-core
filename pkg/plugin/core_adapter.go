@@ -52,6 +52,14 @@ func (c *coreAdapter) OnPosition(hook PositionHook) {
 	}
 }
 
+func (c *coreAdapter) OnPreFilter(filter PrePositionFilter) {
+	if c.posUC != nil && filter != nil {
+		c.posUC.RegisterPreFilter(func(ctx context.Context, p *position.Position, last *position.Position) (bool, error) {
+			return filter(ctx, p, last)
+		})
+	}
+}
+
 func (c *coreAdapter) Router(pluginName string) fiber.Router {
 	if c.pluginGroup == nil {
 		return nil

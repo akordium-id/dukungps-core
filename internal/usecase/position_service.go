@@ -19,6 +19,11 @@ type PositionSearchParams struct {
 	MaxSpeed float64
 }
 
+// PrePositionFilter determines whether a position should continue downstream to DB/broadcast,
+// and can enrich attributes (e.g. distance, odometer, speed clamp).
+// Returning keep = false drops the position without saving to DB.
+type PrePositionFilter func(ctx context.Context, p *position.Position, last *position.Position) (keep bool, err error)
+
 type PositionHook func(ctx context.Context, p *position.Position) error
 
 type PositionUseCase interface {
@@ -26,6 +31,7 @@ type PositionUseCase interface {
 	GetPositionsByDevice(ctx context.Context, deviceID int64, limit int) ([]position.Position, error)
 	SearchPositions(ctx context.Context, params PositionSearchParams) ([]position.Position, error)
 	RegisterPositionHook(hook PositionHook)
+	RegisterPreFilter(filter PrePositionFilter)
 }
 
 type PositionService struct {
@@ -33,6 +39,7 @@ type PositionService struct {
 	deviceRepo   repository.DeviceRepository
 	cache        cache.Cache
 	hub          *websocket.Hub
+	preFilters   []PrePositionFilter
 	hooks        []PositionHook
 }
 
@@ -47,6 +54,7 @@ func NewPositionService(
 		deviceRepo:   deviceRepo,
 		cache:        cache,
 		hub:          hub,
+		preFilters:   make([]PrePositionFilter, 0),
 		hooks:        make([]PositionHook, 0),
 	}
 }
@@ -57,9 +65,35 @@ func (s *PositionService) RegisterPositionHook(hook PositionHook) {
 	}
 }
 
+func (s *PositionService) RegisterPreFilter(filter PrePositionFilter) {
+	if filter != nil {
+		s.preFilters = append(s.preFilters, filter)
+	}
+}
+
 func (s *PositionService) ProcessPosition(ctx context.Context, p *position.Position) error {
 	if !p.IsValidFix() {
 		return nil
+	}
+
+	// Fetch last known position from cache for pre-processing / enrichment / filtering
+	var lastPos *position.Position
+	if s.cache != nil {
+		if cached, err := s.cache.GetPosition(ctx, p.DeviceID); err == nil {
+			lastPos = cached
+		}
+	}
+
+	// Run pre-commit filters (drift filter, speed clamp, distance/odometer enricher, etc.)
+	for _, filter := range s.preFilters {
+		keep, err := filter(ctx, p, lastPos)
+		if err != nil {
+			continue
+		}
+		if !keep {
+			// Position dropped before DB / broadcast
+			return nil
+		}
 	}
 
 	if err := s.positionRepo.Create(ctx, p); err != nil {

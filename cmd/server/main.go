@@ -19,6 +19,7 @@ import (
 	"github.com/akordium-id/dukungps/internal/protocol/teltonika"
 	"github.com/akordium-id/dukungps/internal/repository"
 	"github.com/akordium-id/dukungps/internal/usecase"
+	"github.com/akordium-id/dukungps/internal/usecase/positionfilter"
 	"github.com/akordium-id/dukungps/pkg/plugin"
 	"github.com/akordium-id/dukungps/plugins/geofencealert"
 	"github.com/akordium-id/dukungps/plugins/webhook"
@@ -59,6 +60,11 @@ func main() {
 
 	deviceService := usecase.NewDeviceService(deviceRepo)
 	positionService := usecase.NewPositionService(positionRepo, deviceRepo, cacheImpl, hub)
+	// Register default pre-commit filters (Traccar-style GPS drift, speed filter, and distance/odometer enricher)
+	positionService.RegisterPreFilter(positionfilter.DriftFilter(20.0))
+	positionService.RegisterPreFilter(positionfilter.MaxSpeedFilter(180.0))
+	positionService.RegisterPreFilter(positionfilter.DistanceAndOdometerEnricher())
+
 	geofenceService := usecase.NewGeofenceService(geofenceRepo)
 	userService := usecase.NewUserService(userRepo)
 	commandService := usecase.NewCommandService(commandRepo)

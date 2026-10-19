@@ -1,139 +1,137 @@
-# Protocols
+# Protocols & Telemetry Specification
 
-DukunGPS mendukung protocol GPS tracker berikut. Semua byte format mengacu ke
-implementasi Traccar (referensi utama) dan diverifikasi dengan test fixture.
+DukunGPS mendukung protokol GPS tracker multi-vendor. Semua spesifikasi byte format, parsing Big-Endian, dan skema atribut mengacu ke implementasi **Traccar** sebagai referensi industri terbuka dan diverifikasi secara ketat melalui unit test fixture.
 
-## Umum
+---
 
-- Multi-byte integer: **big-endian**.
-- Tiap protocol mengimplementasikan `FrameDecoder.FrameLen` agar server bisa
-  memisahkan frame dari TCP stream yang ter-fragmentasi.
-- `Decoder.Decode` mengembalikan `Response` (ack) yang wajib ditulis balik ke device.
+## 1. Konvensi Umum
 
-## Teltonika (port default 5027)
+- **Byte Order**: Seluruh integer multi-byte menggunakan format **big-endian**.
+- **Frame Accumulation**: Setiap decoder protokol mengimplementasikan `FrameDecoder.FrameLen` agar server TCP mampu memisahkan frame utuh dari stream TCP yang ter-fragmentasi sebelum proses decoding dimulai.
+- **ACK Handshake**: Method `Decoder.Decode` mengembalikan slice byte `Response` (ack) yang wajib segera dikirim balik ke koneksi socket perangkat untuk menjaga sesi tetap terbuka.
+- **Speed Unit**: Kecepatan dinormalisasi dan disimpan dalam satuan **knots** (mengikuti konvensi Traccar: `km/h / 1.852`).
+- **Koordinat**: Derajat desimal disimpan dalam presisi `float64`.
 
-Famili FMB/FMC (codec 8 dan 8 Extended).
+---
 
-### Identifikasi
+## 2. Standardisasi Atribut Telemetri (Traccar-Compatible)
 
+Untuk memastikan interoperabilitas dashboard frontend dan plugin terlepas dari tipe perangkat keras yang digunakan, seluruh decoder memetakan IO/telemetri mentah ke penamaan atribut standar:
+
+| Atribut Standar | Tipe Data | Keterangan & Sumber Pemetaan |
+|---|---|---|
+| `ignition` | boolean | Status kunci kontak/ACC. Nilai `true` jika mesin aktif. |
+| `motion` | boolean | Status pergerakan fisik perangkat (accelerometer / sensor getar). |
+| `status` | string | Status operasional kendaraan hasil analisis pipeline: `"moving"`, `"idling"`, atau `"stopped"`. |
+| `power` | float64 | Tegangan aki / power supply utama kendaraan (dalam Volt). |
+| `battery` | float64 | Tegangan baterai cadangan internal perangkat (dalam Volt). |
+| `battery_level` | int / float64 | Persentase sisa baterai internal (0 - 100%). |
+| `alarm` | string | Jenis peringatan (misal: `"sos"`, `"overspeed"`, `"geofenceExit"`). |
+| `distance` | float64 | Jarak tempuh dari titik sebelumnya dalam meter (Haversine delta). |
+| `total_distance` | float64 | Total odometer kumulatif dalam meter. |
+| `trip_distance` | float64 | Jarak tempuh akumulatif pada perjalanan (`moving`) saat ini. |
+| `trip_duration` | int64 | Durasi perjalanan saat ini dalam detik. |
+| `idle_duration` | int64 | Durasi idling kontinu kendaraan dalam detik. |
+| `blocked` | boolean | Status pemutus relay bahan bakar (engine cut / immobilization). |
+| `charge` | boolean | Status pengisian daya eksternal aktif. |
+
+### Fallback Virtual ACC (TelemetryNormalizer)
+
+Banyak instalasi pelacak tipe ringkas (OBD-II atau 2-wire) tidak menghubungkan kabel fisik ACC ke starter mobil. Pipeline `TelemetryNormalizer` menyediakan fallback Virtual ACC otomatis:
+1. Jika atribut `ignition` tidak dikirim oleh perangkat:
+   - Apabila kecepatan `speed > 3.0 km/h` atau sensor `motion == true`, sistem menetapkan `ignition = true`.
+   - Jika kendaraan diam, sistem mempertahankan status `ignition` dari titik sebelumnya (cached state).
+
+---
+
+## 3. Spesifikasi Protokol
+
+### Teltonika (Port Default: 5027)
+
+Mendukung famili tracker Teltonika (FMB920, FMC130, FMB120, dll.) dengan **Codec 8** dan **Codec 8 Extended**.
+
+#### Identifikasi / Login
 ```
 [u16 imei_length][imei ascii]
 ```
-Response: `[u8 0x01]` (accept).
+- Server membalas ACK: `[u8 0x01]` (Accept).
 
-### Data frame (codec 8)
-
+#### Data Frame (Codec 8 & 8 Extended)
 ```
-[u32 0x00000000][u32 data_length][codec 0x08][count u8][records...]
+[u32 0x00000000][u32 data_length][codec 0x08 / 0x8E][count u8 / u16][records...][count u8 / u16][u32 crc16]
 ```
 
-Record codec 8:
+Struktur Record:
+- **Timestamp**: 8-byte uint64 (milliseconds unix epoch).
+- **Priority**: 1 byte.
+- **Longitude & Latitude**: Masing-masing 4-byte int32 dibagi $10^7$.
+- **Altitude**: 2-byte int16 (meter).
+- **Course**: 2-byte uint16 (derajat).
+- **Satellites**: 1-byte uint8.
+- **Speed**: 2-byte uint16 km/h (dikonversi ke knots).
+- **IO Elements**: Grouping 1-byte, 2-byte, 4-byte, dan 8-byte properties.
 
-| Field | Size | Keterangan |
-|---|---|---|
-| timestamp | 8 | ms since epoch |
-| priority | 1 | |
-| longitude | 4 | int32 / 1e7 |
-| latitude | 4 | int32 / 1e7 |
-| altitude | 2 | int16 meter |
-| course | 2 | uint16 derajat |
-| satellites | 1 | valid jika != 0 |
-| speed | 2 | uint16 km/h (disimpan sebagai knots) |
-| event id | 1 (8E: 2) | |
-| total io | 1 (8E: 2) | |
-| group 1-byte | var | count + (id,value)* |
-| group 2-byte | var | |
-| group 4-byte | var | |
-| group 8-byte | var | |
+Pemetaan AVL ID Teltonika:
+- `ID 66`: External Power Voltage ($V$) -> `power`
+- `ID 67`: Internal Battery Voltage ($V$) -> `battery`
+- `ID 113`: Battery Level (%) -> `battery_level`
+- `ID 239`: Digital Input 1 (Ignition) -> `ignition`
+- `ID 240`: Movement Sensor -> `motion`
+- `ID 16`: Total Odometer -> `total_distance`
 
-IO parameter yang dipetakan: 66 power (V), 67 battery (V), 113 batteryLevel,
-181/182 pdop/hdop, 239 ignition, 240 motion, 16 odometer, 21 rssi, lainnya
-disimpan sebagai `io<id>`.
+Server ACK: Mengembalikan `[u32 count]` jumlah data yang berhasil diterima.
 
-Response data: `[u32 count]`.
+#### Command Encoder (Codec 12)
+Format: `[u32 0][u32 len+8][0x0C][0x01][0x05][u32 len][ascii command][0x01][u32 crc16-IBM]`
+- Engine Cut: `setdigout 1`
+- Engine Resume: `setdigout 0`
 
-### Command encoder (codec 12)
+---
 
-Frame command dibungkus: `[u32 0][u32 len+8][0x0C][0x01][0x05][u32 len][content][0x01][u32 crc16-IBM]`.
-Mendukung: engineStop (`setdigout 1`), engineResume (`setdigout 0`), custom.
+### GT06 (Port Default: 5023)
 
-## GT06 (port default 5023)
+Mendukung protokol Concox / Jimi IoT famili GT06N, GT06E, WeTrack2, dll.
 
-Famili GT06E/GT06N.
-
-### Frame
-
+#### Struktur Frame
 ```
 [0x78 0x78][LEN u8][TYPE][payload][SERIAL u16][CRC16-X25 u16][0x0D 0x0A]
 ```
-Extended: `[0x79 0x79][LEN u16][...]`. LEN = type + payload + serial + crc.
-CRC-16/X25 dihitung atas `frame[2 : len-4]`.
+Extended framing diawali header `[0x79 0x79]` dengan field `LEN` sepanjang 2 byte (u16).
 
-### Login (TYPE 0x01)
+#### Login Frame (TYPE 0x01)
+- Payload: 8 byte BCD/Hex IMEI (15 digit).
+- Response ACK: `[0x78 0x78 0x05 0x01][SERIAL u16][CRC16][0x0D 0x0A]`
 
-Payload: 8 byte → hex-encode 16 char → buang char pertama → IMEI 15 digit.
+#### Location Frame (TYPE 0x12, 0x10, 0x11, 0x16)
+- Section GPS (18 byte): Date/Time, satelit, latitude/longitude (dibagi $1800000$), speed (km/h), dan bitflags orientasi.
+- Response ACK: Echo serial number frame dengan checksum CRC-16/X25.
 
+---
+
+### Huabao / JT/T-808 (Port Default: 5020)
+
+Mendukung protokol standar transportasi nasional Tiongkok (JT/T-808) dan tracker Huabao.
+
+#### Struktur Framing & Unescaping
 ```
-Response: [0x78 0x78 0x05 0x01][SERIAL u16][CRC16][0x0D 0x0A]
+[0x7E][type u16][attribute u16][id 6B][index 2B][data][XOR checksum][0x7E]
 ```
+Stream bytes lolos dari delimiter `0x7E` menggunakan aturan unescaping:
+- `0x7D 0x01` -> `0x7D`
+- `0x7D 0x02` -> `0x7E`
 
-### Lokasi (TYPE 0x12, 0x10, 0x11, 0x16)
+#### Location Report (TYPE 0x0200)
+- Parsing bitflags status (ignition, valid fix, koordinat hemisphere).
+- Koordinat Latitude & Longitude dibagi $10^6$.
+- Waktu BCD format `YYMMDDHHMMSS`.
+- Server ACK: `0x8001` General Platform Response.
 
-GPS section 18 byte:
+---
 
-| Field | Size | Keterangan |
-|---|---|---|
-| datetime | 6 | Y M D H M S (tahun + 2000) |
-| satellites | 1 | low nibble |
-| latitude | 4 | uint32 / 1800000 |
-| longitude | 4 | uint32 / 1800000 |
-| speed | 1 | km/h |
-| flags | 2 | bit0-9 course, bit10 lat sign (1=positif), bit11 lon sign (1=negatif), bit12 valid |
+## 4. Menambahkan Protokol Baru
 
-Response: ack short frame echo serial.
+1. Buat folder baru di bawah `internal/protocol/<nama>/`.
+2. Implementasikan antarmuka `internal/protocol.Decoder` dan `internal/protocol.FrameDecoder`.
+3. Daftarkan instance protokol di `cmd/server/main.go` pada `registry.Register()` dan tentukan port listen TCP default.
+4. Buat unit test dengan fixture heksadesimal mentah yang diverifikasi terhadap log Traccar.
 
-## Huabao (port default 5020)
-
-Famili Huabao (JT/T-808 style).
-
-### Frame
-
-```
-[0x7E][type u16][attribute u16][id 6B][index 2B (5501/5502: 1B)][data][XOR checksum][0x7E]
-```
-
-Byte-stuffing pada stream: `0x7D 0x01` → `0x7D`, `0x7D 0x02` → `0x7E`.
-Checksum = XOR seluruh byte antara dua delimiter (exclude leading 0x7E dan checksum).
-
-### Device ID
-
-- id berisi ASCII digit → dipakai langsung.
-- id biner → `(u16 BE << 32) | u32 BE` = 14 digit + Luhn check digit → 15-digit IMEI.
-
-### Login (0x0102) / Register (0x0100)
-
-Response: `0x8001` ack.
-
-### Lokasi (0x0200)
-
-| Field | Size | Keterangan |
-|---|---|---|
-| alarm | 4 | bitflags |
-| status | 4 | bit1 valid, bit2 lat neg, bit3 lon neg |
-| latitude | 4 | uint32 * 1e-6 |
-| longitude | 4 | uint32 * 1e-6 |
-| altitude | 2 | int16 |
-| speed | 2 | uint16 * 0.1 km/h |
-| course | 2 | uint16 |
-| time | 6 | BCD YYMMDDHHMMSS |
-
-Response: `0x8001` ack.
-
-## Menambah Protocol Baru
-
-1. Buat folder `internal/protocol/<nama>/` dengan `decoder.go` (implement
-   `Decoder` + `FrameDecoder`) dan optional `encoder.go`.
-2. Definisikan konstanta nama di `internal/protocol/protocol.go`.
-3. Buat `protocol.go` (struct `Protocol`) + `DefaultPort`.
-4. Daftarkan di `cmd/server/main.go` registry + port.
-5. Tulis unit test dengan fixture byte; verifikasi terhadap capture Traccar.

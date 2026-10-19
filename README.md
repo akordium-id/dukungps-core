@@ -2,6 +2,8 @@
 
 > Mbah Dukun tahu kemana kamu pergi.
 
+[![CI/CD](https://github.com/akordium-id/dukungps-core/actions/workflows/ci.yml/badge.svg)](https://github.com/akordium-id/dukungps-core/actions/workflows/ci.yml)
+
 GPS tracker server dalam Go, Clean Architecture, dengan Traccar sebagai referensi
 utama untuk byte format protocol.
 

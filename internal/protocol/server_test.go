@@ -77,8 +77,8 @@ func buildMockFrame(payload []byte) []byte {
 
 func TestServerHandlesProtocolSession(t *testing.T) {
 	server, client := net.Pipe()
-	defer server.Close()
-	defer client.Close()
+	defer func() { _ = server.Close() }()
+	defer func() { _ = client.Close() }()
 
 	handler := &mockHandler{}
 	srv := NewServer(nil)
@@ -95,7 +95,7 @@ func TestServerHandlesProtocolSession(t *testing.T) {
 	require.NoError(t, err)
 
 	ack := make([]byte, 1)
-	client.SetReadDeadline(time.Now().Add(2 * time.Second))
+	require.NoError(t, client.SetReadDeadline(time.Now().Add(2*time.Second)))
 	_, err = io.ReadFull(client, ack)
 	require.NoError(t, err)
 	assert.Equal(t, byte(0xAA), ack[0])
@@ -111,7 +111,7 @@ func TestServerHandlesProtocolSession(t *testing.T) {
 	require.NoError(t, err)
 
 	// close client so server read loop terminates
-	client.Close()
+	_ = client.Close()
 
 	<-done
 	assert.Equal(t, 2, handler.positions)

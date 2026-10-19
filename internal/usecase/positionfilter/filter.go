@@ -195,4 +195,3 @@ func TelemetryNormalizer() PrePositionFilter {
 		return true, nil
 	}
 }
-

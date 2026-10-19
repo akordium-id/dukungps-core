@@ -37,7 +37,7 @@ func main() {
 	defer pool.Close()
 
 	redisClient := redis.NewClient(&redis.Options{Addr: envOr("REDIS_URL", "localhost:6379")})
-	defer redisClient.Close()
+	defer func() { _ = redisClient.Close() }()
 
 	l1, err := cache.NewRistrettoCache()
 	if err != nil {

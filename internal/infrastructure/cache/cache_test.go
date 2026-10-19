@@ -15,7 +15,6 @@ import (
 
 func TestCacheSetGetPosition(t *testing.T) {
 	client := newTestRedis(t)
-	defer client.Close()
 
 	c := NewCache(client)
 
@@ -45,7 +44,6 @@ func TestCacheSetGetPosition(t *testing.T) {
 
 func TestCachePositionNotFound(t *testing.T) {
 	client := newTestRedis(t)
-	defer client.Close()
 
 	c := NewCache(client)
 
@@ -55,7 +53,6 @@ func TestCachePositionNotFound(t *testing.T) {
 
 func TestCacheDeviceOnline(t *testing.T) {
 	client := newTestRedis(t)
-	defer client.Close()
 
 	c := NewCache(client)
 
@@ -72,7 +69,6 @@ func TestCacheDeviceOnline(t *testing.T) {
 
 func TestMultilevelCacheSetGetPosition(t *testing.T) {
 	client := newTestRedis(t)
-	defer client.Close()
 
 	l1, err := NewRistrettoCache()
 	require.NoError(t, err)
@@ -104,7 +100,6 @@ func TestMultilevelCacheSetGetPosition(t *testing.T) {
 
 func TestMultilevelCacheL1MissL2Hit(t *testing.T) {
 	client := newTestRedis(t)
-	defer client.Close()
 
 	redisCache := NewCache(client)
 	p := &position.Position{
@@ -133,7 +128,6 @@ func TestMultilevelCacheL1MissL2Hit(t *testing.T) {
 
 func TestMultilevelCachePositionNotFound(t *testing.T) {
 	client := newTestRedis(t)
-	defer client.Close()
 
 	l1, err := NewRistrettoCache()
 	require.NoError(t, err)
@@ -147,7 +141,6 @@ func TestMultilevelCachePositionNotFound(t *testing.T) {
 
 func TestMultilevelCacheDeviceOnline(t *testing.T) {
 	client := newTestRedis(t)
-	defer client.Close()
 
 	l1, err := NewRistrettoCache()
 	require.NoError(t, err)
@@ -169,5 +162,9 @@ func TestMultilevelCacheDeviceOnline(t *testing.T) {
 func newTestRedis(t *testing.T) *redis.Client {
 	t.Helper()
 	s := miniredis.RunT(t)
-	return redis.NewClient(&redis.Options{Addr: s.Addr()})
+	client := redis.NewClient(&redis.Options{Addr: s.Addr()})
+	t.Cleanup(func() {
+		_ = client.Close()
+	})
+	return client
 }

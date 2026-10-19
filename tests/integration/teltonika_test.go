@@ -57,7 +57,7 @@ func TestTeltonikaEndToEnd(t *testing.T) {
 	// mock device connects
 	conn, err := net.Dial("tcp", addr.String())
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// 1. identification (device NOT pre-registered -> exercises auto-register)
 	imei := []byte("123456789012345")
@@ -66,7 +66,7 @@ func TestTeltonikaEndToEnd(t *testing.T) {
 	require.NoError(t, err)
 
 	ack := make([]byte, 1)
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)))
 	_, err = io.ReadFull(conn, ack)
 	require.NoError(t, err)
 	assert.Equal(t, byte(0x01), ack[0])
@@ -151,14 +151,14 @@ func TestTeltonikaRejectsUnknownDeviceWhenAutoRegisterDisabled(t *testing.T) {
 
 	conn, err := net.Dial("tcp", addr.String())
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	imei := []byte("987654321098765")
 	_, err = conn.Write(append([]byte{0x00, 0x0F}, imei...))
 	require.NoError(t, err)
 
 	ack := make([]byte, 1)
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)))
 	_, err = io.ReadFull(conn, ack)
 	require.NoError(t, err)
 	assert.Equal(t, byte(0x01), ack[0])

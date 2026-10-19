@@ -103,7 +103,7 @@ func (s *Server) acceptLoop(name string, ln net.Listener, proto Protocol) {
 }
 
 func (s *Server) handleConnection(conn net.Conn, name string, proto Protocol) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	decoder := proto.Decoder()
 	framer, ok := decoder.(FrameDecoder)

@@ -99,6 +99,75 @@ func MaxSpeedFilter(maxSpeedKmh float64) PrePositionFilter {
 	}
 }
 
+// TripAndStateDetector evaluates operational vehicle status (Moving, Idling, Stopped)
+// and tracks ongoing trip distance/duration and continuous idling duration.
+func TripAndStateDetector() PrePositionFilter {
+	return func(ctx context.Context, p *position.Position, last *position.Position) (bool, error) {
+		p.EnsureAttributes()
+
+		ignition := p.GetBool(position.AttrIgnition)
+		isMoving := p.Speed > 3.0 || p.GetBool(position.AttrMotion)
+
+		var deltaSec int64
+		if last != nil && !last.Time.IsZero() && !p.Time.IsZero() && p.Time.After(last.Time) {
+			deltaSec = int64(p.Time.Sub(last.Time).Seconds())
+		}
+
+		// Distance delta in meters (from distance enricher if available)
+		var deltaDist float64
+		if d, ok := p.Attributes[position.AttrDistance].(float64); ok {
+			deltaDist = d
+		}
+
+		switch {
+		case ignition && isMoving:
+			p.Attributes[position.AttrStatus] = position.StatusMoving
+			p.Attributes[position.AttrIdleDuration] = int64(0)
+
+			// Accumulate trip metrics
+			tripDist := deltaDist
+			tripDur := deltaSec
+			if last != nil && last.Attributes != nil {
+				if lastStatus, _ := last.Attributes[position.AttrStatus].(string); lastStatus == position.StatusMoving {
+					if td, ok := last.Attributes[position.AttrTripDistance].(float64); ok {
+						tripDist += td
+					}
+					if tdur, ok := last.Attributes[position.AttrTripDuration].(int64); ok {
+						tripDur += tdur
+					}
+				}
+			}
+			p.Attributes[position.AttrTripDistance] = math.Round(tripDist*100) / 100
+			p.Attributes[position.AttrTripDuration] = tripDur
+
+		case ignition && !isMoving:
+			p.Attributes[position.AttrStatus] = position.StatusIdling
+			p.Attributes[position.AttrTripDistance] = 0.0
+			p.Attributes[position.AttrTripDuration] = int64(0)
+
+			// Accumulate continuous idling duration
+			idleDur := deltaSec
+			if last != nil && last.Attributes != nil {
+				if lastStatus, _ := last.Attributes[position.AttrStatus].(string); lastStatus == position.StatusIdling {
+					if lidle, ok := last.Attributes[position.AttrIdleDuration].(int64); ok {
+						idleDur += lidle
+					}
+				}
+			}
+			p.Attributes[position.AttrIdleDuration] = idleDur
+
+		default:
+			// Ignition OFF -> Stopped / Parked
+			p.Attributes[position.AttrStatus] = position.StatusStopped
+			p.Attributes[position.AttrTripDistance] = 0.0
+			p.Attributes[position.AttrTripDuration] = int64(0)
+			p.Attributes[position.AttrIdleDuration] = int64(0)
+		}
+
+		return true, nil
+	}
+}
+
 // TelemetryNormalizer guarantees standardized attributes across all hardware trackers.
 // It derives Motion from speed if absent, and derives Virtual ACC (Ignition) when physical ACC is unmapped.
 func TelemetryNormalizer() PrePositionFilter {

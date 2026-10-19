@@ -6,15 +6,26 @@ import (
 
 // Standardized Telemetry Attributes (Traccar & Fleet Management compatible)
 const (
-	AttrIgnition  = "ignition"       // bool: true = ACC ON, false = ACC OFF
-	AttrBlocked   = "blocked"        // bool: true = cut-engine / relay active
-	AttrMotion    = "motion"         // bool: true = device is moving
-	AttrCharge    = "charge"         // bool: true = connected to external power / alternator
-	AttrPower     = "power"          // float64: main external voltage (V)
-	AttrBattery   = "battery"        // float64: backup internal battery voltage (V)
-	AttrAlarm     = "alarm"          // string: alarm type (e.g., AlarmSOS, AlarmPowerCut)
-	AttrDistance  = "distance"       // float64: trip delta distance in meters
-	AttrOdometer  = "total_distance" // float64: cumulative odometer in meters
+	AttrIgnition     = "ignition"      // bool: true = ACC ON, false = ACC OFF
+	AttrBlocked      = "blocked"       // bool: true = cut-engine / relay active
+	AttrMotion       = "motion"        // bool: true = device is moving
+	AttrCharge       = "charge"        // bool: true = connected to external power / alternator
+	AttrPower        = "power"         // float64: main external voltage (V)
+	AttrBattery      = "battery"       // float64: backup internal battery voltage (V)
+	AttrAlarm        = "alarm"         // string: alarm type (e.g., AlarmSOS, AlarmPowerCut)
+	AttrDistance     = "distance"      // float64: trip delta distance in meters
+	AttrOdometer     = "total_distance"// float64: cumulative odometer in meters
+	AttrStatus       = "status"        // string: operational state ("moving", "idling", "stopped")
+	AttrTripDistance = "trip_distance" // float64: distance of current ongoing trip in meters
+	AttrTripDuration = "trip_duration" // int64: duration of current ongoing trip in seconds
+	AttrIdleDuration = "idle_duration" // int64: duration of continuous idling in seconds
+)
+
+// Standard Operational Statuses
+const (
+	StatusMoving  = "moving"  // ACC ON + Speed > 0 / Motion
+	StatusIdling  = "idling"  // ACC ON + Speed == 0 (Engine running while stopped)
+	StatusStopped = "stopped" // ACC OFF (Parked)
 )
 
 // Standard Alarm Types

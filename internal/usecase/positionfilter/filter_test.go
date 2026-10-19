@@ -3,6 +3,7 @@ package positionfilter
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -152,4 +153,79 @@ func TestTelemetryNormalizer(t *testing.T) {
 	assert.True(t, keep)
 	assert.False(t, p3.GetBool(position.AttrMotion))
 	assert.True(t, p3.GetBool(position.AttrIgnition), "should inherit last ignition state when stationary")
+}
+
+func TestTripAndStateDetector(t *testing.T) {
+	detector := TripAndStateDetector()
+	ctx := context.Background()
+	now := time.Now()
+
+	// 1. Vehicle Stopped (Parked): Ignition OFF
+	pStopped := &position.Position{
+		DeviceID:   1,
+		Time:       now,
+		Speed:      0,
+		Attributes: map[string]any{position.AttrIgnition: false},
+	}
+	keep, err := detector(ctx, pStopped, nil)
+	require.NoError(t, err)
+	assert.True(t, keep)
+	assert.Equal(t, position.StatusStopped, pStopped.Attributes[position.AttrStatus])
+	assert.Equal(t, int64(0), pStopped.Attributes[position.AttrIdleDuration])
+	assert.Equal(t, 0.0, pStopped.Attributes[position.AttrTripDistance])
+
+	// 2. Vehicle starts Moving: Ignition ON + Speed > 3 km/h
+	pMoving1 := &position.Position{
+		DeviceID:   1,
+		Time:       now.Add(30 * time.Second),
+		Speed:      40.0,
+		Attributes: map[string]any{position.AttrIgnition: true, position.AttrDistance: 350.0},
+	}
+	keep, err = detector(ctx, pMoving1, pStopped)
+	require.NoError(t, err)
+	assert.True(t, keep)
+	assert.Equal(t, position.StatusMoving, pMoving1.Attributes[position.AttrStatus])
+	assert.Equal(t, 350.0, pMoving1.Attributes[position.AttrTripDistance])
+	assert.Equal(t, int64(30), pMoving1.Attributes[position.AttrTripDuration])
+	assert.Equal(t, int64(0), pMoving1.Attributes[position.AttrIdleDuration])
+
+	// 3. Vehicle continues Moving: Accumulates trip metrics
+	pMoving2 := &position.Position{
+		DeviceID:   1,
+		Time:       now.Add(60 * time.Second),
+		Speed:      50.0,
+		Attributes: map[string]any{position.AttrIgnition: true, position.AttrDistance: 500.0},
+	}
+	keep, err = detector(ctx, pMoving2, pMoving1)
+	require.NoError(t, err)
+	assert.True(t, keep)
+	assert.Equal(t, position.StatusMoving, pMoving2.Attributes[position.AttrStatus])
+	assert.Equal(t, 850.0, pMoving2.Attributes[position.AttrTripDistance])
+	assert.Equal(t, int64(60), pMoving2.Attributes[position.AttrTripDuration])
+
+	// 4. Vehicle stops at Traffic Light / Waiting (Idling): Ignition ON, Speed = 0
+	pIdle1 := &position.Position{
+		DeviceID:   1,
+		Time:       now.Add(90 * time.Second),
+		Speed:      0.0,
+		Attributes: map[string]any{position.AttrIgnition: true},
+	}
+	keep, err = detector(ctx, pIdle1, pMoving2)
+	require.NoError(t, err)
+	assert.True(t, keep)
+	assert.Equal(t, position.StatusIdling, pIdle1.Attributes[position.AttrStatus])
+	assert.Equal(t, int64(30), pIdle1.Attributes[position.AttrIdleDuration])
+
+	// 5. Vehicle continuous Idling: Accumulates idle duration
+	pIdle2 := &position.Position{
+		DeviceID:   1,
+		Time:       now.Add(150 * time.Second),
+		Speed:      0.0,
+		Attributes: map[string]any{position.AttrIgnition: true},
+	}
+	keep, err = detector(ctx, pIdle2, pIdle1)
+	require.NoError(t, err)
+	assert.True(t, keep)
+	assert.Equal(t, position.StatusIdling, pIdle2.Attributes[position.AttrStatus])
+	assert.Equal(t, int64(90), pIdle2.Attributes[position.AttrIdleDuration]) // 30s + 60s
 }

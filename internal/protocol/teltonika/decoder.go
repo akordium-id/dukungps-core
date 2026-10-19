@@ -240,20 +240,26 @@ func readValue(data []byte, offset, size int) (uint64, int, error) {
 
 func applyParameter(pos *position.Position, id int, value uint64) {
 	switch id {
+	case 1: // Digital Output 1 (DOUT1) - commonly wired to Engine cut-off relay
+		pos.Attributes[position.AttrBlocked] = value > 0
 	case 66:
-		pos.Attributes["power"] = float64(value) * 0.001
+		pos.Attributes[position.AttrPower] = float64(value) * 0.001
 	case 67:
-		pos.Attributes["battery"] = float64(value) * 0.001
+		pos.Attributes[position.AttrBattery] = float64(value) * 0.001
 	case 113:
 		pos.Attributes["batteryLevel"] = value
 	case 181:
 		pos.Attributes["pdop"] = float64(value) * 0.1
 	case 182:
 		pos.Attributes["hdop"] = float64(value) * 0.1
+	case 236: // Panic / SOS alarm trigger
+		if value > 0 {
+			pos.Attributes[position.AttrAlarm] = position.AlarmSOS
+		}
 	case 239:
-		pos.Attributes["ignition"] = value > 0
+		pos.Attributes[position.AttrIgnition] = value > 0
 	case 240:
-		pos.Attributes["motion"] = value > 0
+		pos.Attributes[position.AttrMotion] = value > 0
 	case 16:
 		pos.Attributes["odometer"] = value
 	case 21:

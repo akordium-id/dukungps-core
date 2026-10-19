@@ -200,7 +200,8 @@ func decodeLocation(body []byte) (*position.Position, error) {
 		return nil, errShortData
 	}
 
-	status := int32(binary.BigEndian.Uint32(body[4:8]))
+	alarm := binary.BigEndian.Uint32(body[0:4])
+	status := binary.BigEndian.Uint32(body[4:8])
 	latRaw := binary.BigEndian.Uint32(body[8:12])
 	lonRaw := binary.BigEndian.Uint32(body[12:16])
 
@@ -218,6 +219,27 @@ func decodeLocation(body []byte) (*position.Position, error) {
 	}
 	if status&0b1000 != 0 {
 		pos.Longitude = -pos.Longitude
+	}
+
+	// Status Bitmask (JT/T 808 standard)
+	// Bit 0: ACC (0 = OFF, 1 = ON)
+	pos.Attributes[position.AttrIgnition] = (status & 0b1) != 0
+	// Bit 10: Oil / Electricity circuit status (1 = disconnected / cut-engine active)
+	if (status & (1 << 10)) != 0 {
+		pos.Attributes[position.AttrBlocked] = true
+	}
+	if pos.Speed > 0 {
+		pos.Attributes[position.AttrMotion] = true
+	}
+
+	// Alarm Bitmask (JT/T 808 standard)
+	// Bit 0: Emergency SOS alarm
+	if (alarm & 0b1) != 0 {
+		pos.Attributes[position.AttrAlarm] = position.AlarmSOS
+	} else if (alarm & 0b10) != 0 { // Bit 1: Overspeed alarm
+		pos.Attributes[position.AttrAlarm] = position.AlarmOverspeed
+	} else if (alarm & (1 << 8)) != 0 { // Bit 8: Main power cutoff
+		pos.Attributes[position.AttrAlarm] = position.AlarmPowerCut
 	}
 
 	pos.Time = decodeBCDTime(body[22:28])

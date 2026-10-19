@@ -98,3 +98,32 @@ func MaxSpeedFilter(maxSpeedKmh float64) PrePositionFilter {
 		return true, nil
 	}
 }
+
+// TelemetryNormalizer guarantees standardized attributes across all hardware trackers.
+// It derives Motion from speed if absent, and derives Virtual ACC (Ignition) when physical ACC is unmapped.
+func TelemetryNormalizer() PrePositionFilter {
+	return func(ctx context.Context, p *position.Position, last *position.Position) (bool, error) {
+		p.EnsureAttributes()
+
+		// 1. Motion normalization: if speed > 3 km/h, mark motion = true
+		if _, ok := p.Attributes[position.AttrMotion]; !ok {
+			p.Attributes[position.AttrMotion] = p.Speed > 3.0
+		}
+
+		// 2. Virtual ACC fallback: if ignition is not explicitly reported by hardware
+		if _, ok := p.Attributes[position.AttrIgnition]; !ok {
+			// If device is moving (> 3 km/h), vehicle ignition is definitely ON
+			if p.Speed > 3.0 || p.GetBool(position.AttrMotion) {
+				p.Attributes[position.AttrIgnition] = true
+			} else if last != nil {
+				// Otherwise retain last known ignition state if available
+				p.Attributes[position.AttrIgnition] = last.GetBool(position.AttrIgnition)
+			} else {
+				p.Attributes[position.AttrIgnition] = false
+			}
+		}
+
+		return true, nil
+	}
+}
+

@@ -80,6 +80,39 @@ func TestDecodeLocation(t *testing.T) {
 	assert.InDelta(t, -7.2456, pos.Latitude, 0.000001)
 	assert.InDelta(t, -112.7389, pos.Longitude, 0.000001)
 	assert.Equal(t, float64(180), pos.Course)
+	// status: 0b1110 -> bit 0 (ignition) is 0
+	assert.False(t, pos.GetBool("ignition"))
 	// ack present
 	assert.NotEmpty(t, res.Response)
+}
+
+func TestDecodeLocationWithStatusAndAlarm(t *testing.T) {
+	deviceID := []byte("123456")
+
+	data := make([]byte, 0, 28)
+	// Alarm: bit 0 (SOS) = 1
+	data = binary.BigEndian.AppendUint32(data, 0b1)
+	// Status: bit 0 (ACC ON), bit 1 (Valid), bit 10 (Cut-engine relay active)
+	status := uint32(0b1 | 0b10 | (1 << 10))
+	data = binary.BigEndian.AppendUint32(data, status)
+	data = binary.BigEndian.AppendUint32(data, 7245600)
+	data = binary.BigEndian.AppendUint32(data, 112738900)
+	data = binary.BigEndian.AppendUint16(data, 0x0000)
+	data = binary.BigEndian.AppendUint16(data, 300) // speed = 30.0 km/h
+	data = binary.BigEndian.AppendUint16(data, 90)
+	data = append(data, 0x26, 0x08, 0x03, 0x12, 0x34, 0x56)
+
+	frame := buildFrame(t, 0x0200, deviceID, data)
+
+	d := NewDecoder()
+	res, err := d.Decode(frame)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Len(t, res.Positions, 1)
+
+	pos := res.Positions[0]
+	assert.True(t, pos.GetBool("ignition"), "ignition should be true")
+	assert.True(t, pos.GetBool("blocked"), "cut-engine blocked should be true")
+	assert.True(t, pos.GetBool("motion"), "motion should be true when speed > 0")
+	assert.Equal(t, "sos", pos.Attributes["alarm"])
 }

@@ -60,9 +60,10 @@ func main() {
 
 	deviceService := usecase.NewDeviceService(deviceRepo)
 	positionService := usecase.NewPositionService(positionRepo, deviceRepo, cacheImpl, hub)
-	// Register default pre-commit filters (Traccar-style GPS drift, speed filter, and distance/odometer enricher)
+	// Register default pre-commit filters (Traccar-style GPS drift, speed filter, telemetry normalizer, and distance/odometer enricher)
 	positionService.RegisterPreFilter(positionfilter.DriftFilter(20.0))
 	positionService.RegisterPreFilter(positionfilter.MaxSpeedFilter(180.0))
+	positionService.RegisterPreFilter(positionfilter.TelemetryNormalizer())
 	positionService.RegisterPreFilter(positionfilter.DistanceAndOdometerEnricher())
 
 	geofenceService := usecase.NewGeofenceService(geofenceRepo)

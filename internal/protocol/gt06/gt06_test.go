@@ -93,6 +93,45 @@ func TestDecodeLocation(t *testing.T) {
 	assert.Equal(t, []byte{0x00, 0x02}, res.Response[4:6])
 }
 
+func TestDecodeLocationWithTerminalStatus(t *testing.T) {
+	latRaw := uint32(54.94535 * 1800000)
+	lonRaw := uint32(24.01762 * 1800000)
+	flags := uint16(270 | 0x0400 | 0x1000)
+
+	payload := make([]byte, 0, 25)
+	payload = append(payload, 0x0F, 0x0A, 0x14, 0x0E, 0x15, 0x0B)
+	payload = append(payload, 0x05)
+	payload = binary.BigEndian.AppendUint32(payload, latRaw)
+	payload = binary.BigEndian.AppendUint32(payload, lonRaw)
+	payload = append(payload, 84)
+	payload = binary.BigEndian.AppendUint16(payload, flags)
+	// Append 6 bytes LBS (MCC 2, MNC 1, LAC 2, CellID 3 approx)
+	payload = append(payload, 0x01, 0xCC, 0x00, 0x28, 0x5D, 0x00)
+	// Append Terminal Information byte:
+	// Bit 7: Oil cut (0x80)
+	// Bit 2: Charging (0x04)
+	// Bit 1: ACC ON (0x02)
+	// Bits 5-3: 100 (SOS alarm = 0x20)
+	// statusByte = 0x80 | 0x20 | 0x04 | 0x02 = 0xA6
+	statusByte := byte(0xA6)
+	payload = append(payload, statusByte)
+
+	frame := buildShortFrame(t, 0x12, payload, 0x0005)
+
+	d := NewDecoder()
+	res, err := d.Decode(frame)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Len(t, res.Positions, 1)
+
+	pos := res.Positions[0]
+	assert.True(t, pos.GetBool("ignition"), "ignition should be true")
+	assert.True(t, pos.GetBool("blocked"), "cut-engine blocked should be true")
+	assert.True(t, pos.GetBool("charge"), "charge should be true")
+	assert.True(t, pos.GetBool("motion"), "motion should be true")
+	assert.Equal(t, "sos", pos.Attributes["alarm"])
+}
+
 func TestDecodeUnknownType(t *testing.T) {
 	// command types 0x80-0x82 -> no positions, no response
 	frame := buildShortFrame(t, 0x80, nil, 0x0003)

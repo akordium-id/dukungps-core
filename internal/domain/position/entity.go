@@ -4,6 +4,28 @@ import (
 	"time"
 )
 
+// Standardized Telemetry Attributes (Traccar & Fleet Management compatible)
+const (
+	AttrIgnition  = "ignition"       // bool: true = ACC ON, false = ACC OFF
+	AttrBlocked   = "blocked"        // bool: true = cut-engine / relay active
+	AttrMotion    = "motion"         // bool: true = device is moving
+	AttrCharge    = "charge"         // bool: true = connected to external power / alternator
+	AttrPower     = "power"          // float64: main external voltage (V)
+	AttrBattery   = "battery"        // float64: backup internal battery voltage (V)
+	AttrAlarm     = "alarm"          // string: alarm type (e.g., AlarmSOS, AlarmPowerCut)
+	AttrDistance  = "distance"       // float64: trip delta distance in meters
+	AttrOdometer  = "total_distance" // float64: cumulative odometer in meters
+)
+
+// Standard Alarm Types
+const (
+	AlarmSOS       = "sos"
+	AlarmPowerCut  = "powerCut"
+	AlarmOverspeed = "overspeed"
+	AlarmLowPower  = "lowPower"
+	AlarmVibration = "vibration"
+)
+
 type Position struct {
 	ID         int64
 	DeviceID   int64
@@ -24,4 +46,25 @@ func (p *Position) IsValidFix() bool {
 		p.Valid &&
 		p.Latitude >= -90 && p.Latitude <= 90 &&
 		p.Longitude >= -180 && p.Longitude <= 180
+}
+
+func (p *Position) EnsureAttributes() {
+	if p.Attributes == nil {
+		p.Attributes = make(map[string]any)
+	}
+}
+
+func (p *Position) SetAttribute(key string, val any) {
+	p.EnsureAttributes()
+	p.Attributes[key] = val
+}
+
+func (p *Position) GetBool(key string) bool {
+	if p.Attributes == nil {
+		return false
+	}
+	if b, ok := p.Attributes[key].(bool); ok {
+		return b
+	}
+	return false
 }

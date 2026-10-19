@@ -111,3 +111,45 @@ func TestMaxSpeedFilter(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, keep, "should drop unrealistic speed spike")
 }
+
+func TestTelemetryNormalizer(t *testing.T) {
+	normalizer := TelemetryNormalizer()
+	ctx := context.Background()
+
+	// Case 1: Speed > 3 km/h -> should derive Motion = true and Virtual ACC = true
+	p1 := &position.Position{
+		DeviceID: 1,
+		Speed:    45.0,
+	}
+	keep, err := normalizer(ctx, p1, nil)
+	require.NoError(t, err)
+	assert.True(t, keep)
+	assert.True(t, p1.GetBool(position.AttrMotion))
+	assert.True(t, p1.GetBool(position.AttrIgnition))
+
+	// Case 2: Stationary (Speed = 0) with no previous state -> Motion = false, Ignition = false
+	p2 := &position.Position{
+		DeviceID: 1,
+		Speed:    0.0,
+	}
+	keep, err = normalizer(ctx, p2, nil)
+	require.NoError(t, err)
+	assert.True(t, keep)
+	assert.False(t, p2.GetBool(position.AttrMotion))
+	assert.False(t, p2.GetBool(position.AttrIgnition))
+
+	// Case 3: Stationary (Speed = 0), but last known state was Ignition ON (idling vehicle with ACC on)
+	last := &position.Position{
+		DeviceID:   1,
+		Attributes: map[string]any{position.AttrIgnition: true},
+	}
+	p3 := &position.Position{
+		DeviceID: 1,
+		Speed:    0.0,
+	}
+	keep, err = normalizer(ctx, p3, last)
+	require.NoError(t, err)
+	assert.True(t, keep)
+	assert.False(t, p3.GetBool(position.AttrMotion))
+	assert.True(t, p3.GetBool(position.AttrIgnition), "should inherit last ignition state when stationary")
+}

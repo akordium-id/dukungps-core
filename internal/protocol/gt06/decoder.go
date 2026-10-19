@@ -182,6 +182,41 @@ func (d *Decoder) decodeLocation(payload []byte, serial uint16) (*protocol.Decod
 		if flags&flagLonNegative != 0 {
 			pos.Longitude = -pos.Longitude
 		}
+
+		if pos.Speed > 0 {
+			pos.Attributes[position.AttrMotion] = true
+		}
+
+		// Extended LBS & Terminal Status parsing (payload >= 18 + 6 LBS + 1 status = 25 bytes)
+		// Terminal Info byte layout:
+		// bit 7: Oil/Electricity (1 = cut/blocked)
+		// bit 6: GPS tracked
+		// bits 5-3: Alarm code (001: vibration, 010: power cut, 011: low battery, 100: SOS)
+		// bit 2: Charge / External power connected
+		// bit 1: ACC (1 = ON, 0 = OFF)
+		// bit 0: Defense (1 = armed)
+		if len(payload) >= 25 {
+			statusByte := payload[24]
+			pos.Attributes[position.AttrIgnition] = (statusByte & 0x02) != 0
+			if (statusByte & 0x80) != 0 {
+				pos.Attributes[position.AttrBlocked] = true
+			}
+			if (statusByte & 0x04) != 0 {
+				pos.Attributes[position.AttrCharge] = true
+			}
+
+			alarmCode := (statusByte >> 3) & 0x07
+			switch alarmCode {
+			case 1:
+				pos.Attributes[position.AttrAlarm] = position.AlarmVibration
+			case 2:
+				pos.Attributes[position.AttrAlarm] = position.AlarmPowerCut
+			case 3:
+				pos.Attributes[position.AttrAlarm] = position.AlarmLowPower
+			case 4:
+				pos.Attributes[position.AttrAlarm] = position.AlarmSOS
+			}
+		}
 	}
 
 	response := buildAck(msgGPSLBS1, nil, serial)

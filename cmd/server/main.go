@@ -20,6 +20,7 @@ import (
 	"github.com/akordium-id/dukungps/internal/repository"
 	"github.com/akordium-id/dukungps/internal/usecase"
 	"github.com/akordium-id/dukungps/pkg/plugin"
+	"github.com/akordium-id/dukungps/plugins/geofencealert"
 	"github.com/akordium-id/dukungps/plugins/webhook"
 	"github.com/redis/go-redis/v9"
 )
@@ -100,11 +101,12 @@ func main() {
 	})
 
 	// Plugin subsystem (open-core extensible architecture)
-	coreAdapter := plugin.NewCoreAdapter(pool, positionService, deviceRepo, apiGroup)
+	coreAdapter := plugin.NewCoreAdapter(pool, positionService, deviceRepo, geofenceService, apiGroup)
 	pluginRegistry := plugin.NewManagedRegistry(coreAdapter)
 
 	// Register built-in / optional plugins
 	_ = pluginRegistry.Register(webhook.New())
+	_ = pluginRegistry.Register(geofencealert.New())
 
 	if err := pluginRegistry.InitAll(); err != nil {
 		log.Fatalf("plugin init: %v", err)

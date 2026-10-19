@@ -94,6 +94,7 @@ Wajib set `DATABASE_URL` dan `POSTGRES_PASSWORD` via environment.
 - [Arsitektur](docs/architecture.md)
 - [REST API](docs/api.md)
 - [Protocol byte format](docs/protocols.md)
+- [Plugin Development Guide](docs/plugins.md)
 - [Implementation plan](docs/plans/2026-08-03-dukungps-implementation-plan.md)
 
 ## Lisensi

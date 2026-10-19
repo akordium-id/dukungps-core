@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/akordium-id/dukungps/internal/domain/device"
+	"github.com/akordium-id/dukungps/internal/domain/geofence"
 	"github.com/akordium-id/dukungps/internal/domain/position"
 	"github.com/akordium-id/dukungps/internal/repository"
 	"github.com/akordium-id/dukungps/internal/usecase"
@@ -18,6 +19,7 @@ type coreAdapter struct {
 	pool        *pgxpool.Pool
 	posUC       usecase.PositionUseCase
 	deviceRepo  repository.DeviceRepository
+	geofenceUC  usecase.GeofenceUseCase
 	pluginGroup fiber.Router
 }
 
@@ -26,6 +28,7 @@ func NewCoreAdapter(
 	pool *pgxpool.Pool,
 	posUC usecase.PositionUseCase,
 	deviceRepo repository.DeviceRepository,
+	geofenceUC usecase.GeofenceUseCase,
 	apiGroup fiber.Router,
 ) Core {
 	var pluginGroup fiber.Router
@@ -36,6 +39,7 @@ func NewCoreAdapter(
 		pool:        pool,
 		posUC:       posUC,
 		deviceRepo:  deviceRepo,
+		geofenceUC:  geofenceUC,
 		pluginGroup: pluginGroup,
 	}
 }
@@ -61,6 +65,10 @@ func (c *coreAdapter) Devices() DeviceReader {
 
 func (c *coreAdapter) Positions() PositionReader {
 	return &positionReaderAdapter{posUC: c.posUC}
+}
+
+func (c *coreAdapter) Geofences() GeofenceReader {
+	return &geofenceReaderAdapter{geofenceUC: c.geofenceUC}
 }
 
 func (c *coreAdapter) DB() *pgxpool.Pool {
@@ -110,4 +118,23 @@ func (r *positionReaderAdapter) GetPositionsByDevice(ctx context.Context, device
 		return nil, nil
 	}
 	return r.posUC.GetPositionsByDevice(ctx, deviceID, limit)
+}
+
+// geofenceReaderAdapter provides read-only geofence queries.
+type geofenceReaderAdapter struct {
+	geofenceUC usecase.GeofenceUseCase
+}
+
+func (r *geofenceReaderAdapter) ListGeofences(ctx context.Context) ([]*geofence.Geofence, error) {
+	if r.geofenceUC == nil {
+		return nil, nil
+	}
+	return r.geofenceUC.ListGeofences(ctx)
+}
+
+func (r *geofenceReaderAdapter) GetGeofence(ctx context.Context, id int64) (*geofence.Geofence, error) {
+	if r.geofenceUC == nil {
+		return nil, nil
+	}
+	return r.geofenceUC.GetGeofence(ctx, id)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/akordium-id/dukungps/internal/domain/device"
+	"github.com/akordium-id/dukungps/internal/domain/geofence"
 	"github.com/akordium-id/dukungps/internal/domain/position"
 )
 
@@ -25,6 +26,12 @@ type PositionReader interface {
 	GetPositionsByDevice(ctx context.Context, deviceID int64, limit int) ([]position.Position, error)
 }
 
+// GeofenceReader provides read-only access to geofence queries for plugins.
+type GeofenceReader interface {
+	ListGeofences(ctx context.Context) ([]*geofence.Geofence, error)
+	GetGeofence(ctx context.Context, id int64) (*geofence.Geofence, error)
+}
+
 // Core is the primary capability host exposed to plugins (WordPress-like Core API).
 type Core interface {
 	// Hooks
@@ -36,6 +43,7 @@ type Core interface {
 	// Data Readers
 	Devices() DeviceReader
 	Positions() PositionReader
+	Geofences() GeofenceReader
 
 	// Infra & Config
 	DB() *pgxpool.Pool

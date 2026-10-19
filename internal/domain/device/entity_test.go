@@ -8,29 +8,29 @@ import (
 
 func TestDevice_IsValid(t *testing.T) {
 	tests := []struct {
-		name  string
+		name   string
 		device Device
-		want  bool
+		want   bool
 	}{
 		{
-			name:  "valid device",
+			name:   "valid device",
 			device: Device{UniqueID: "123456789012345", Name: "Truk 01", Protocol: "teltonika"},
-			want:  true,
+			want:   true,
 		},
 		{
-			name:  "missing unique id",
+			name:   "missing unique id",
 			device: Device{Name: "Truk 01", Protocol: "teltonika"},
-			want:  false,
+			want:   false,
 		},
 		{
-			name:  "missing protocol",
+			name:   "missing protocol",
 			device: Device{UniqueID: "123456789012345", Name: "Truk 01"},
-			want:  false,
+			want:   false,
 		},
 		{
-			name:  "blank unique id",
+			name:   "blank unique id",
 			device: Device{UniqueID: "   ", Name: "Truk 01", Protocol: "teltonika"},
-			want:  false,
+			want:   false,
 		},
 	}
 

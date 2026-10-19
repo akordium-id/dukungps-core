@@ -6,7 +6,7 @@ const DefaultPort = 5027
 
 type Protocol struct{}
 
-func (p *Protocol) Name() string          { return protocol.Teltonika }
+func (p *Protocol) Name() string              { return protocol.Teltonika }
 func (p *Protocol) Decoder() protocol.Decoder { return NewDecoder() }
 func (p *Protocol) Encoder() protocol.Encoder { return NewEncoder() }
 

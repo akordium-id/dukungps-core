@@ -58,14 +58,14 @@ func TestDecodeLocation(t *testing.T) {
 	// 0x0200 body: alarm u32, status i32, lat u32*1e-6, lon u32*1e-6,
 	// alt i16, speed u16*0.1, course u16, time BCD YYMMDDHHMMSS
 	data := make([]byte, 0, 28)
-	data = binary.BigEndian.AppendUint32(data, 0)                 // alarm
-	data = binary.BigEndian.AppendUint32(data, 0b1110)            // status: bit1 valid, bit2 lat neg, bit3 lon neg
-	data = binary.BigEndian.AppendUint32(data, 7245600)           // lat raw 7.245600
-	data = binary.BigEndian.AppendUint32(data, 112738900)         // lon raw 112.738900
-	data = binary.BigEndian.AppendUint16(data, 0x0000)            // altitude placeholder (i16)
-	data = binary.BigEndian.AppendUint16(data, 0)                 // speed 0
-	data = binary.BigEndian.AppendUint16(data, 180)               // course 180
-	data = append(data, 0x26, 0x08, 0x03, 0x12, 0x34, 0x56)       // time 2026-08-03 12:34:56 BCD
+	data = binary.BigEndian.AppendUint32(data, 0)           // alarm
+	data = binary.BigEndian.AppendUint32(data, 0b1110)      // status: bit1 valid, bit2 lat neg, bit3 lon neg
+	data = binary.BigEndian.AppendUint32(data, 7245600)     // lat raw 7.245600
+	data = binary.BigEndian.AppendUint32(data, 112738900)   // lon raw 112.738900
+	data = binary.BigEndian.AppendUint16(data, 0x0000)      // altitude placeholder (i16)
+	data = binary.BigEndian.AppendUint16(data, 0)           // speed 0
+	data = binary.BigEndian.AppendUint16(data, 180)         // course 180
+	data = append(data, 0x26, 0x08, 0x03, 0x12, 0x34, 0x56) // time 2026-08-03 12:34:56 BCD
 
 	frame := buildFrame(t, 0x0200, deviceID, data)
 

@@ -31,15 +31,9 @@ func (h *WebSocketHandler) Handle(c fiber.Ctx) error {
 			}
 		}()
 
-		for {
-			select {
-			case data, ok := <-client.SendChannel():
-				if !ok {
-					return
-				}
-				if err := conn.WriteMessage(fiberwebsocket.TextMessage, data); err != nil {
-					return
-				}
+		for data := range client.SendChannel() {
+			if err := conn.WriteMessage(fiberwebsocket.TextMessage, data); err != nil {
+				return
 			}
 		}
 	})(c)

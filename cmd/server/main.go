@@ -19,6 +19,7 @@ import (
 	"github.com/akordium-id/dukungps/internal/protocol/teltonika"
 	"github.com/akordium-id/dukungps/internal/repository"
 	"github.com/akordium-id/dukungps/internal/usecase"
+	"github.com/akordium-id/dukungps/pkg/plugin"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -86,16 +87,24 @@ func main() {
 
 	// HTTP API
 	app := fiber.New()
-	handler.SetupRoutes(app, &handler.Services{
-		DeviceUseCase:     deviceService,
-		PositionUseCase:   positionService,
-		GeofenceUseCase:   geofenceService,
-		UserUseCase:       userService,
-		CommandUseCase:    commandService,
+	apiGroup := handler.SetupRoutes(app, &handler.Services{
+		DeviceUseCase:      deviceService,
+		PositionUseCase:    positionService,
+		GeofenceUseCase:    geofenceService,
+		UserUseCase:        userService,
+		CommandUseCase:     commandService,
 		DeviceGroupUseCase: deviceGroupService,
-		AlertUseCase:      alertService,
+		AlertUseCase:       alertService,
 		Hub:                hub,
 	})
+
+	// Plugin subsystem (open-core extensible architecture)
+	coreAdapter := plugin.NewCoreAdapter(pool, positionService, deviceRepo, apiGroup)
+	pluginRegistry := plugin.NewRegistry(coreAdapter)
+	if err := pluginRegistry.InitAll(); err != nil {
+		log.Fatalf("plugin init: %v", err)
+	}
+	defer pluginRegistry.CloseAll()
 
 	if err := app.Listen(envOr("HTTP_ADDR", ":8080")); err != nil {
 		log.Fatalf("http server: %v", err)

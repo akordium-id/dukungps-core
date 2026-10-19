@@ -8,17 +8,17 @@ import (
 )
 
 type Services struct {
-	DeviceUseCase     usecase.DeviceUseCase
-	PositionUseCase   usecase.PositionUseCase
-	GeofenceUseCase   usecase.GeofenceUseCase
-	UserUseCase       usecase.UserUseCase
-	CommandUseCase    usecase.CommandUseCase
+	DeviceUseCase      usecase.DeviceUseCase
+	PositionUseCase    usecase.PositionUseCase
+	GeofenceUseCase    usecase.GeofenceUseCase
+	UserUseCase        usecase.UserUseCase
+	CommandUseCase     usecase.CommandUseCase
 	DeviceGroupUseCase usecase.DeviceGroupUseCase
-	AlertUseCase      usecase.AlertUseCase
-	Hub               *websocket.Hub
+	AlertUseCase       usecase.AlertUseCase
+	Hub                *websocket.Hub
 }
 
-func SetupRoutes(app *fiber.App, services *Services) {
+func SetupRoutes(app *fiber.App, services *Services) fiber.Router {
 	deviceHandler := NewDeviceHandler(services.DeviceUseCase)
 	positionHandler := NewPositionHandler(services.PositionUseCase, services.Hub)
 	wsHandler := NewWebSocketHandler(services.Hub)
@@ -70,4 +70,6 @@ func SetupRoutes(app *fiber.App, services *Services) {
 	api.Put("/alerts/:id", alertHandler.Update)
 	api.Delete("/alerts/:id", alertHandler.Delete)
 	api.Get("/ws", wsHandler.Handle)
+
+	return api
 }

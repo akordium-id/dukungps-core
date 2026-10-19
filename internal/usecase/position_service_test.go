@@ -100,6 +100,38 @@ func TestPositionService_ProcessPosition(t *testing.T) {
 	assert.Equal(t, -7.2456, got.Latitude)
 }
 
+func TestPositionService_PositionHook(t *testing.T) {
+	posRepo := &mockPositionRepo{}
+	posRepo.On("Create", mock.Anything, mock.AnythingOfType("*position.Position")).Return(nil)
+
+	hub := websocket.NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	cacheImpl := cache.NewCache(newMiniredis(t))
+	svc := NewPositionService(posRepo, nil, cacheImpl, hub)
+
+	hookCalled := false
+	var capturedID int64
+	svc.RegisterPositionHook(func(ctx context.Context, p *position.Position) error {
+		hookCalled = true
+		capturedID = p.DeviceID
+		return nil
+	})
+
+	p := &position.Position{
+		DeviceID:  42,
+		Latitude:  -7.25,
+		Longitude: 112.75,
+		Valid:     true,
+	}
+
+	err := svc.ProcessPosition(context.Background(), p)
+	require.NoError(t, err)
+	assert.True(t, hookCalled)
+	assert.Equal(t, int64(42), capturedID)
+}
+
 func TestPositionService_ProcessPositionBroadcast(t *testing.T) {
 	posRepo := &mockPositionRepo{}
 	posRepo.On("Create", mock.Anything, mock.AnythingOfType("*position.Position")).Return(nil)

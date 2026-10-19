@@ -70,6 +70,10 @@ func (m *mockPositionUseCase) SearchPositions(ctx context.Context, params usecas
 	return args.Get(0).([]position.Position), args.Error(1)
 }
 
+func (m *mockPositionUseCase) RegisterPositionHook(hook usecase.PositionHook) {
+	m.Called(hook)
+}
+
 var _ usecase.PositionUseCase = (*mockPositionUseCase)(nil)
 
 func TestDeviceHandlerList(t *testing.T) {

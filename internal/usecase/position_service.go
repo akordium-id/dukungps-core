@@ -19,10 +19,13 @@ type PositionSearchParams struct {
 	MaxSpeed float64
 }
 
+type PositionHook func(ctx context.Context, p *position.Position) error
+
 type PositionUseCase interface {
 	ProcessPosition(ctx context.Context, p *position.Position) error
 	GetPositionsByDevice(ctx context.Context, deviceID int64, limit int) ([]position.Position, error)
 	SearchPositions(ctx context.Context, params PositionSearchParams) ([]position.Position, error)
+	RegisterPositionHook(hook PositionHook)
 }
 
 type PositionService struct {
@@ -30,6 +33,7 @@ type PositionService struct {
 	deviceRepo   repository.DeviceRepository
 	cache        cache.Cache
 	hub          *websocket.Hub
+	hooks        []PositionHook
 }
 
 func NewPositionService(
@@ -43,6 +47,13 @@ func NewPositionService(
 		deviceRepo:   deviceRepo,
 		cache:        cache,
 		hub:          hub,
+		hooks:        make([]PositionHook, 0),
+	}
+}
+
+func (s *PositionService) RegisterPositionHook(hook PositionHook) {
+	if hook != nil {
+		s.hooks = append(s.hooks, hook)
 	}
 }
 
@@ -63,6 +74,14 @@ func (s *PositionService) ProcessPosition(ctx context.Context, p *position.Posit
 		DeviceID: p.DeviceID,
 		Position: p,
 	})
+
+	for _, hook := range s.hooks {
+		if err := hook(ctx, p); err != nil {
+			// Hook errors are logged/ignored from aborting the pipeline,
+			// ensuring one failing plugin does not crash position processing
+			continue
+		}
+	}
 
 	return nil
 }

@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/alicebob/miniredis/v2 v2.40.0
-	github.com/dgraph-io/ristretto v1.0.1
+	github.com/dgraph-io/ristretto v0.2.0
 	github.com/gofiber/contrib/v3/websocket v1.2.8
 	github.com/gofiber/fiber/v3 v3.6.1
 	github.com/jackc/pgx/v5 v5.11.0

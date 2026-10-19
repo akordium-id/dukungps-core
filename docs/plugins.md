@@ -1,7 +1,7 @@
 # Panduan Pembuatan Plugin untuk dukungps-core
 
 `dukungps-core` mengadopsi pola arsitektur **Open-Core** (mirip dengan WordPress Core):
-- **Core (AGPL/Open Source)**: Menangani penerimaan stream TCP GPS tracker, decoding protokol (Teltonika, GT06, Huabao), penyimpanan data ke database, caching redis, dan WebSocket broadcast.
+- **Core (Apache-2.0 / Open Source Permisif)**: Menangani penerimaan stream TCP GPS tracker, decoding protokol (Teltonika, GT06, Huabao), penyimpanan data ke database, caching redis, dan WebSocket broadcast.
 - **Plugins (Open / Commercial / Closed Source)**: Modul ekstensi yang menambahkan fitur spesifik seperti alert geofence tingkat lanjut, integrasi sensor bahan bakar, webhook dispatcher, laporan armada, dll.
 
 ---

@@ -32,6 +32,11 @@ func (m *mockPositionRepo) FindByDeviceID(ctx context.Context, deviceID int64, l
 	return args.Get(0).([]position.Position), args.Error(1)
 }
 
+func (m *mockPositionRepo) Search(ctx context.Context, params repository.PositionSearchParams) ([]position.Position, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]position.Position), args.Error(1)
+}
+
 type mockDeviceRepo struct {
 	mock.Mock
 }

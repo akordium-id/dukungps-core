@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/akordium-id/dukungps/internal/domain/position"
@@ -89,7 +90,7 @@ func (d *Decoder) decodeData(data []byte) (*protocol.DecodeResult, error) {
 	offset := 2
 
 	positions := make([]*position.Position, 0, count)
-	for i := 0; i < count; i++ {
+	for range count {
 		pos, next, err := d.decodeLocation(payload, offset, codec)
 		if err != nil {
 			return nil, err
@@ -206,13 +207,7 @@ func decodeParams(data []byte, offset, codec int, pos *position.Position, size i
 }
 
 func readExtByte(data []byte, offset, codec int, extCodecs ...int) (int, int, error) {
-	ext := false
-	for _, c := range extCodecs {
-		if codec == c {
-			ext = true
-			break
-		}
-	}
+	ext := slices.Contains(extCodecs, codec)
 	if ext {
 		if offset+2 > len(data) {
 			return 0, offset, errors.New("teltonika: truncated ext byte")

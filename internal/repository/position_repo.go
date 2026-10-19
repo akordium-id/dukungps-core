@@ -87,7 +87,7 @@ func (r *PostgresPositionRepo) FindByDeviceID(ctx context.Context, deviceID int6
 func (r *PostgresPositionRepo) Search(ctx context.Context, params PositionSearchParams) ([]position.Position, error) {
 	query := `SELECT id, device_id, latitude, longitude, altitude, speed, course, valid, time, device_time, attributes
 		 FROM positions WHERE device_id = $1`
-	args := []interface{}{params.DeviceID}
+	args := []any{params.DeviceID}
 	argIdx := 1
 
 	if params.From != nil {

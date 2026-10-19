@@ -65,6 +65,11 @@ func (m *mockPositionUseCase) ProcessPosition(ctx context.Context, p *position.P
 	return args.Error(0)
 }
 
+func (m *mockPositionUseCase) SearchPositions(ctx context.Context, params usecase.PositionSearchParams) ([]position.Position, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]position.Position), args.Error(1)
+}
+
 var _ usecase.PositionUseCase = (*mockPositionUseCase)(nil)
 
 func TestDeviceHandlerList(t *testing.T) {
